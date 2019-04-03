@@ -1,5 +1,6 @@
 # Import libraries
 import pandas as pd
+import os
 
 # Mandatory function for RapidMiner
 def rm_main(data):
@@ -17,8 +18,12 @@ def rm_main(data):
             # Check if the Name is present on that Element/row
             if("in class" in column and row[column]): 
                 # Save the Name on the list
-                name = column[10:-1]
-                list_.append(name)
+                list_.append(column[10:-1])
+                # Format data for cue Analysis
+                if(row[column] > 1):
+                    data.at[index, "total"] = row["total"] - row[column] + 1 
+                    row["total"] = row["total"] - row[column] + 1
+                    data.at[index, column] = 1
         # Save the correlation between Element and Names
         DF = DF.append({"Element": row["word"], "Names": list_}, ignore_index=True)
 
@@ -79,11 +84,12 @@ def rm_main(data):
     # Return the 3 DataFrames for RapidMiner usage
     return data, cue, DTF
 
-
-DataF, C, DTF = rm_main(pd.read_excel(r"C:\Users\marco\Desktop\analysis-step\K-analysis-example-output.xlsx"))
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/K-analysis-example-output.xlsx")))
+#print(test)
+DataF, C, DTF = rm_main(test)
 #print(DataF)
 #print(C)
-#DataF.to_excel(r"C:\Users\marco\Desktop\analysis-step\SolAnalysis.xlsx")
-#C.to_excel(r"C:\Users\marco\Desktop\analysis-step\CueAnalysis.xlsx")
+DataF.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/SolAnalysis.xlsx")))
+C.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/CueAnalysis.xlsx")))
 #print(DTF)
-DTF.to_excel(r"C:\Users\marco\Desktop\analysis-step\venn.xlsx")
+DTF.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/venn.xlsx")))
