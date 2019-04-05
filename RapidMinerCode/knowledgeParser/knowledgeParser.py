@@ -7,6 +7,8 @@ import pandas as pd
 import os
 import time
 
+from datetime import datetime
+
 # Class to handle the Excel file and relative indexes
 class ExcelFile:
     def __init__(self, writer, num = 0):
@@ -29,16 +31,12 @@ def parse(vocabFolder, date, row, totalExcel, list_):
         print(str(e) + "\n")    
         return totalExcel, list_, 0
 
-    # Serialize the vocabulary in a .nt format saved in vocabFolder/Resources with the same name of the Excel File
-    try:
-        resourceDestination = os.path.join(vocabFolder, "Resources")
-        if not os.path.isdir(resourceDestination):
-            os.makedirs(resourceDestination)
-        fileName = date + "_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"]
-        g.serialize(destination=str(os.path.join(resourceDestination, fileName)) + ".nt", format='nt')
-    except Exception as e:
-        # In case of an error during the graph's serialization, print the error
-        print(str(e) + "\n")    
+    # Serialize the vocabulary in multiple formats
+    serializeVoc(vocabFolder, date, row, g, "n3")
+    serializeVoc(vocabFolder, date, row, g, "nt")
+    serializeVoc(vocabFolder, date, row, g, "pretty-xml")
+    serializeVoc(vocabFolder, date, row, g, "turtle")
+    serializeVoc(vocabFolder, date, row, g, "json-ld")
 
     print(row["prefix"])
 
@@ -52,25 +50,12 @@ def parse(vocabFolder, date, row, totalExcel, list_):
     # Elaborate the fileName of the vocabulary
     fileName = date + "_Filtered_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "_"
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    singleWriter = pd.ExcelWriter(str(os.path.join(vocabFolder, fileName + "0.xlsx")), engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
-    singleExcel = ExcelFile(singleWriter)
-    # Get the xlsxwriter workbook and worksheet objects.
-    singleWorkbook  = singleWriter.book
-    # Add WorkSheets with relative titles and relative bold header 
-    singleFilteredSheet = singleWorkbook.add_worksheet("Single Filtered Triples")
-    singleFilteredSheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), singleWorkbook.add_format({"bold": True}))
-    singleFilteredSheet.set_column(0, 8, 30)
+    singleExcel, singleWorkbook, singleFilteredSheet = newExcel(0, str(os.path.join(vocabFolder, fileName + "0.xlsx")), "Single Filtered Triples")
     """
     # Elaborate the fileName of the vocabulary
     fileName = date + "_Full_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "_"
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    singleWriter = pd.ExcelWriter(str(os.path.join(vocabFolder, fileName + "0.xlsx")), engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
-    singleExcel = ExcelFile(singleWriter)
-    # Get the xlsxwriter workbook and worksheet objects.
-    singleWorkbook  = singleWriter.book
-    singleFullSheet = singleWorkbook.add_worksheet("Single Full Triples")
-    singleFullSheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), singleWorkbook.add_format({"bold": True}))
-    singleFullSheet.set_column(0, 8, 30)
+    singleExcel, singleWorkbook, singleFilteredSheet = newExcel(0, str(os.path.join(vocabFolder, fileName + "_0.xlsx")), "Single Full Triples")
     """
     
     # For each statement present in the graph obtained store the triples
@@ -81,13 +66,28 @@ def parse(vocabFolder, date, row, totalExcel, list_):
         singleFullSheet.write_row(singleExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
         totalFullSheet.write_row(totalExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
         """
+
+        # Compute the filtered statement of the Triples
         subjectTerm = subject.replace("/", "#").split("#")[-1]
+        if(not len(subjectTerm) and len(subject.replace("/", "#").split("#")) > 1):
+            subjectTerm = subject.replace("/", "#").split("#")[-2]
         predicateTerm = predicate.replace("/", "#").split("#")[-1]
+        if(not len(predicateTerm) and len(predicate.replace("/", "#").split("#")) > 1):
+            predicateTerm = predicate.replace("/", "#").split("#")[-2]
         objectTerm = object_.replace("/", "#").split("#")[-1]
+        if(not len(objectTerm) and len(object_.replace("/", "#").split("#")) > 1):
+            objectTerm = object_.replace("/", "#").split("#")[-2]
         if(row["prefix"] == "FreeBase"):
             subjectTerm = subjectTerm.split(".")[-1]
+            if(not len(subjectTerm) and len(subjectTerm.split(".")) > 1):
+                subjectTerm = subjectTerm.split(".")[-2]
             predicateTerm = predicateTerm.split(".")[-1]
+            if(not len(objectTerm) and len(predicateTerm.split(".")) > 1):
+                predicateTerm = predicateTerm.split(".")[-2]
             objectTerm = objectTerm.split(".")[-1]
+            if(not len(objectTerm) and len(objectTerm.split(".")) > 1):
+                objectTerm = objectTerm.split(".")[-2]
+
         # Save the Filtered statement to the List to be added to the DataFrame
         list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
         """
@@ -97,7 +97,7 @@ def parse(vocabFolder, date, row, totalExcel, list_):
         # Save the Filtered statement to the ExcelSheet FilteredTriples
         singleFilteredSheet.write_row(singleExcel.index, 0, (date, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
         totalFilteredSheet.write_row(totalExcel.index, 0, (date, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-        # Update the index of both the ExcelSheets
+        # Update the index of both the ExcelFiles
         singleExcel.index += 1
         totalExcel.index += 1
         # If the rows reach the excel limit then create a new ExcelFile
@@ -105,45 +105,20 @@ def parse(vocabFolder, date, row, totalExcel, list_):
             #Close the ExcelFile
             singleWorkbook.close()
             singleExcel.writer.save()
-            # Create a Pandas Excel writer using XlsxWriter as the engine.
-            singleWriter = pd.ExcelWriter(str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
-            singleExcel = ExcelFile(singleWriter, singleExcel.num)
-            # Get the xlsxwriter workbook and worksheet objects.
-            singleWorkbook  = singleWriter.book
-            # Add WorkSheet with relative titles and relative bold header 
-            singleFilteredSheet = singleWorkbook.add_worksheet("Single Filtered Triples")
-            singleFilteredSheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), singleWorkbook.add_format({"bold": True}))
-            singleFilteredSheet.set_column(0, 8, 30)
+            # Create a new ExcelFile
+            singleExcel, singleWorkbook, singleFilteredSheet = newExcel(singleExcel.num, str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), "Single Filtered Triples")
             """
-            # Add WorkSheet with relative titles and relative bold header 
-            singleFullSheet = singleWorkbook.add_worksheet("Single Full Triples")
-            singleFullSheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), singleWorkbook.add_format({"bold": True}))
-            singleFullSheet.set_column(0, 8, 30)
+            singleExcel, singleWorkbook, singleFullSheet = newExcel(singleExcel.num, str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), "Single Full Triples")
             """
         # If the rows reach the excel limit then create a new ExcelFile
         if(totalExcel.index == 1048575):
             #Close the ExcelFile
-            totalWorkbook.close()
+            totalExcel.book.close()
             totalExcel.writer.save()
-            # Create a Pandas Excel writer using XlsxWriter as the engine.
-            totalWriter = pd.ExcelWriter(str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
-            totalExcel = ExcelFile(totalWriter, totalExcel.num)
-            # Get the xlsxwriter workbook and worksheet objects.
-            totalWorkbook  = totalWriter.book
-            # Add WorkSheet with relative titles and relative bold header 
-            totalFilteredSheet = totalWorkbook.add_worksheet("Total Filtered Triples")
-            totalFilteredSheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), totalWorkbook.add_format({"bold": True}))
-            totalFilteredSheet.set_column(0, 8, 30)
+            # Create a new ExcelFile
+            totalExcel, totalWorkbook, totalFilteredSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Filtered Triples")
             """
-            # Create a Pandas Excel writer using XlsxWriter as the engine.
-            totalWriter = pd.ExcelWriter(str(os.path.join(os.path.dirname(vocabFolder), date + "_Full_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
-            totalExcel = ExcelFile(totalWriter, totalExcel.num)
-            # Get the xlsxwriter workbook and worksheet objects.
-            totalWorkbook  = totalWriter.book
-            # Add WorkSheet with relative titles and relative bold header 
-            totalFullSheet = totalWorkbook.add_worksheet("Total Full Triples")
-            totalFullSheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), totalWorkbook.add_format({"bold": True}))
-            totalFullSheet.set_column(0, 8, 30)
+            totalExcel, totalWorkbook, totalFullSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Full_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Full Triples")
             """
 
     # Close the Excel file of the single vocabulary
@@ -152,6 +127,32 @@ def parse(vocabFolder, date, row, totalExcel, list_):
 
     # Return the List to be added to the DataFrame and the relative index
     return totalExcel, list_, index
+
+# Serialize the vocabulary in a format saved in vocabFolder/Resources with the same name of the Excel File
+def serializeVoc(vocabFolder, date, row, g, format_):
+    try:
+        resourceDestination = os.path.join(vocabFolder, "Resources/"+format_)
+        if not os.path.isdir(resourceDestination):
+            os.makedirs(resourceDestination)
+        fileName = date + "_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "." + format_
+        g.serialize(destination=str(os.path.join(resourceDestination, fileName)), format=format_)
+    except Exception as e:
+        # In case of an error during the graph's serialization, print the error
+        print(str(e) + "\n")
+
+# Create a new ExcelFile
+def newExcel(excelNum, fileName, sheetName):
+    # Create a Pandas Excel writer using XlsxWriter as the engine.
+    writer = pd.ExcelWriter(fileName, engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
+    excelFile_ = ExcelFile(writer, excelNum)
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook  = writer.book
+    # Add WorkSheet with relative titles and relative bold header 
+    worksheet = workbook.add_worksheet(sheetName)
+    worksheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), workbook.add_format({"bold": True}))
+    worksheet.set_column(0, 8, 30)
+    # Return the new excelFile_, workbook, worksheet
+    return excelFile_, workbook, worksheet
 
 # Mandatory function for RapidMiner
 def rm_main(vocabs):
@@ -164,23 +165,9 @@ def rm_main(vocabs):
     date = time.strftime("%Y-%m-%d", time.gmtime())
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    totalWriter = pd.ExcelWriter(str(os.path.join(location, date + "_Filtered_Knowledge-Triples_0.xlsx")), engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
-    totalExcel = ExcelFile(totalWriter)
-    # Get the xlsxwriter workbook and worksheet objects.
-    totalWorkbook  = totalWriter.book
-    # Add WorkSheets with relative titles and relative bold header 
-    totalFilteredSheet = totalWorkbook.add_worksheet("Total Filtered Triples")
-    totalFilteredSheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), totalWorkbook.add_format({"bold": True}))
-    totalFilteredSheet.set_column(0, 8, 30)
+    totalExcel, totalWorkbook, totalFilteredSheet = newExcel(0, str(os.path.join(location, date + "_Filtered_Knowledge-Triples_0.xlsx")), "Total Filtered Triples")
     """
-    # Create a Pandas Excel writer using XlsxWriter as the engine.
-    totalWriter = pd.ExcelWriter(str(os.path.join(location, date + "_Full_Knowledge-Triples_0.xlsx")), engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
-    totalExcel = ExcelFile(totalWriter)
-    # Get the xlsxwriter workbook and worksheet objects.
-    totalWorkbook  = totalWriter.book
-    totalFullSheet = totalWorkbook.add_worksheet("Total Full Triples")
-    totalFullSheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), totalWorkbook.add_format({"bold": True}))
-    totalFullSheet.set_column(0, 8, 30)
+    totalExcel, totalWorkbook, totalFullSheet = newExcel(0, str(os.path.join(location, date + "_Full_Knowledge-Triples_0.xlsx")), "Total Full Triples")
     """
 
     # Create the DataFrame to save the vocabs' Date of parsing, Subject, Predicate, Object, Domain, Domain Version, Domain Date, URI, Title, Languages
@@ -205,6 +192,13 @@ def rm_main(vocabs):
 
     # Return the DataFrame for RapidMiner visualization
     return df
-    
-print(rm_main(pd.read_excel(r"C:\Users\marco\Desktop\K-Files\KnowledgeLatest.xlsx")))
 
+tick = datetime.now()
+
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/KnowledgeLatest.xlsx")))
+DTF = rm_main(test)
+DTF.to_excel(os.path.normpath(os.path.expanduser("~/Desktop/K-Files/KKK.xlsx")))
+
+tock = datetime.now()   
+diff = tock - tick    # the result is a datetime.timedelta object
+print(diff.total_seconds())

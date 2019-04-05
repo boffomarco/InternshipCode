@@ -16,6 +16,7 @@ def rm_main(predicates, triples):
             if(row["Predicate"] in r["Predicate"]):
                 # Save that triple on the list
                 list_.insert(index_,{"Type": row["Subject"], "Property": row["Object"]})
+                #list_.insert(index_,{"Type": row["Subject"], "Property": row["Object"]})
                 index_ += 1
         # Save the information on the list to the DataFrame for each predicate checked
         if(index_ and len(list_)):
