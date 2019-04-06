@@ -32,11 +32,12 @@ def parse(vocabFolder, date, row, totalExcel, list_):
         return totalExcel, list_, 0
 
     # Serialize the vocabulary in multiple formats
-    serializeVoc(vocabFolder, date, row, g, "n3")
-    serializeVoc(vocabFolder, date, row, g, "nt")
-    serializeVoc(vocabFolder, date, row, g, "pretty-xml")
-    serializeVoc(vocabFolder, date, row, g, "turtle")
-    serializeVoc(vocabFolder, date, row, g, "json-ld")
+    serializedName = date + "_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "."
+    serializeVoc(vocabFolder, serializedName + "n3", g, "n3")
+    serializeVoc(vocabFolder, serializedName + "nt", g, "nt")
+    serializeVoc(vocabFolder, serializedName + "rdf", g, "pretty-xml")
+    serializeVoc(vocabFolder, serializedName + "ttl", g, "turtle")
+    serializeVoc(vocabFolder, serializedName + "json-ld", g, "json-ld")
 
     print(row["prefix"])
 
@@ -113,7 +114,7 @@ def parse(vocabFolder, date, row, totalExcel, list_):
         # If the rows reach the excel limit then create a new ExcelFile
         if(totalExcel.index == 1048575):
             #Close the ExcelFile
-            totalExcel.book.close()
+            totalExcel.writer.book.close()
             totalExcel.writer.save()
             # Create a new ExcelFile
             totalExcel, totalWorkbook, totalFilteredSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Filtered Triples")
@@ -129,12 +130,11 @@ def parse(vocabFolder, date, row, totalExcel, list_):
     return totalExcel, list_, index
 
 # Serialize the vocabulary in a format saved in vocabFolder/Resources with the same name of the Excel File
-def serializeVoc(vocabFolder, date, row, g, format_):
+def serializeVoc(vocabFolder, fileName, g, format_):
     try:
         resourceDestination = os.path.join(vocabFolder, "Resources/"+format_)
         if not os.path.isdir(resourceDestination):
             os.makedirs(resourceDestination)
-        fileName = date + "_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "." + format_
         g.serialize(destination=str(os.path.join(resourceDestination, fileName)), format=format_)
     except Exception as e:
         # In case of an error during the graph's serialization, print the error
@@ -195,9 +195,9 @@ def rm_main(vocabs):
 
 tick = datetime.now()
 
-test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/KnowledgeLatest.xlsx")))
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Internship/KnowDive/resources/KnowledgeLatest.xlsx")))
 DTF = rm_main(test)
-DTF.to_excel(os.path.normpath(os.path.expanduser("~/Desktop/K-Files/KKK.xlsx")))
+DTF.to_csv(os.path.normpath(os.path.expanduser("~/Desktop/K-Files/FilteredTriples.csv")))
 
 tock = datetime.now()   
 diff = tock - tick    # the result is a datetime.timedelta object

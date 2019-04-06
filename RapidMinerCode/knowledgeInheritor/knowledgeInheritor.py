@@ -32,7 +32,6 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
         return inTotalExcel, list_, 0
 
     print(row["prefix"])
-    print(len(result))
 
     # Get the inTotalExcel file and relative worksheets
     inTotalWorkbook = inTotalExcel.writer.book
@@ -83,8 +82,8 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
                 objectTerm = objectTerm.split(".")[-2]
         
         # Save the Filtered statement to the List to be added to the DataFrame
-        #list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
-        list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+        #list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+        list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
         index += 1
         
         # Save the Filtered statement to the ExcelSheet FilteredTriples
@@ -110,14 +109,15 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
             # Create a new ExcelFile
             inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Total Filtered Triples")
 
+    # Print number of rows before inheritance
+    print(index)
+
     # Add the inheritance relative triples
     if(len(inherit)):
+        # Generate the list with all the relative inherited triples
+        check, inList, inIndex, inherit = addInheritance(g, inherit)
         # Iteratively repeat the controls to add all the inherited triples
-        check = True
         while(check):
-            # Generate the list with all the relative inherited triples
-            check, inList, inIndex = addInheritance(g, inherit)
-            print(inIndex)
             # Iterate on every element/triple of the list and add the value to the excel files
             for element in inList:
                 # Extract the triple from the element
@@ -152,8 +152,8 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
                         objectTerm = objectTerm.split(".")[-2]
                 
                 # Save the Filtered statement to the List to be added to the DataFrame
-                #list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
-                list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+                #list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+                list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
                 index += 1
                 
                 # Save the Filtered statement to the ExcelSheet FilteredTriples
@@ -178,6 +178,12 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
                     inTotalExcel.writer.save()
                     # Create a new ExcelFile
                     inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Total Filtered Triples")
+
+            # Generate the list with all the relative inherited triples
+            check, inList, inIndex, inherit = addInheritance(g, inherit)
+
+    # Print number of rows after inheritance
+    print(index)
 
     # Close the Excel file of the single vocabulary
     inSingleExcel.writer.book.close()
@@ -244,7 +250,7 @@ def addInheritance(g, inherit):
 
     # Return False if there is nothing to be added
     if(not len(subL)):
-        return False, list(), 0
+        return False, list(), 0, inherit
 
     # Create a new set to contain only those objects that has already inherited every inheritable objects
     toSubList = subL.copy()
@@ -261,6 +267,8 @@ def addInheritance(g, inherit):
     inIndex = 0
     # Continue only in case of inheritance
     if(len(toSubList)):
+        # Create the set of subjects/termList that needs immediate inheritance
+        termList = set()
         # Iterate over every subject/term that need inheritance
         for term in termL:
             # Create a set for every subject/term, containing its relative inheritable objects/sub
@@ -286,36 +294,38 @@ def addInheritance(g, inherit):
                             # Add the new object/sub to the inheritable objects/subOfs on the subject/term set and relative row of the dataframe
                             subOfs = str(inherit.at[term, "subOf"])
                             inherit.at[term, "subOf"] = subOfs + " , " + sub
+            # Add only the terms that can inherit object/toSub
+            if(toSub in str(inherit.at[term, "subOf"])):
+                termList.add(term)
 
         # Iterate over every subject/term that needs inheritance
-        for term in termL:
-            # Get and iterate over the inheritable objects/subOfs of the subject/term
+        for term in termList:
+            # Get the inheritable objects/subOfs of the subject/term
             subOfs = str(inherit.at[term, "subOf"])
-            for sub in subOfs.split(" , "):
-                # Iterate over every object/toSub that is going to be inherited
-                for toSub in toSubList:
-                    # If the combination match, i.e. a subject/term needs to inherit from the object/toSub
-                    if(toSub == sub):
-                        # Get the already inherited/subbed objects/subs of the subject/term
-                        subs = str(inherit.at[term, "subbed"])
-                        # Add the object/toSub to the already inherited/subbed objects/subs of the subject/term
-                        inherit.at[term, "subbed"] = subs + " , " + str(toSub)
+            # Iterate over every object/toSub that is going to be inherited
+            for toSub in toSubList:
+                # If the combination match, i.e. a subject/term needs to inherit from the object/toSub
+                if(toSub in subOfs):
+                    # Get the already inherited/subbed objects/subs of the subject/term
+                    subs = str(inherit.at[term, "subbed"])
+                    # Add the object/toSub to the already inherited/subbed objects/subs of the subject/term
+                    inherit.at[term, "subbed"] = subs + " , " + str(toSub)
 
-                        # Add the triples having the object/toSub as Subject as if the subject/term is the actual Subject 
-                        # Iterate over every triple of the graph
-                        for subject, predicate, object_ in g:
-                            # If the object/toSub acts as Subject of that triple
-                            if(toSub in subject):
-                                # Add the triple as if the subject/term is the actual Subject 
-                                inList_.insert(inIndex, {"Subject": str(term), "Predicate": str(predicate), "Object": str(object_)})
-                                inIndex += 1
+                    # Add the triples having the object/toSub as Subject as if the subject/term is the actual Subject 
+                    # Iterate over every triple of the graph
+                    for subject, predicate, object_ in g:
+                        # If the object/toSub acts as Subject of that triple
+                        if(toSub in subject):
+                            # Add the triple as if the subject/term is the actual Subject 
+                            inList_.insert(inIndex, {"Subject": str(term), "Predicate": str(predicate), "Object": str(object_)})
+                            inIndex += 1
 
         # Return True, the list with the inherited triples and the relative index number
-        return True, inList_, inIndex
+        return True, inList_, inIndex, inherit
     # If there is nothing to be added
     else: 
         # Return False
-        return False, inList_, 0
+        return False, inList_, 0, inherit
 
 # Mandatory function for RapidMiner
 def rm_main(vocabs):
@@ -335,8 +345,6 @@ def rm_main(vocabs):
 
     # Iterate for every vocabulary read from the second argument
     for index, row in vocabs.iterrows():
-        if(index !=  4):
-            continue
         # Create the Folder 
         vocabFolder = str(os.path.join(location, row["Folder"]))
         if not os.path.isdir(vocabFolder):
@@ -357,9 +365,9 @@ def rm_main(vocabs):
 
 tick = datetime.now()
 
-test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/KnowledgeLatest.xlsx")))
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Internship/KnowDive/resources/KnowledgeLatest.xlsx")))
 DTF = rm_main(test)
-DTF.to_excel(os.path.normpath(os.path.expanduser("~/Desktop/K-Files/KKK.xlsx")))
+DTF.to_excel(os.path.normpath(os.path.expanduser("~/Desktop/K-Files/Inherited_Triples.xlsx")))
 
 tock = datetime.now()   
 diff = tock - tick    # the result is a datetime.timedelta object
