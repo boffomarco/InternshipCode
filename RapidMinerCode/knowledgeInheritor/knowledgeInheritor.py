@@ -55,12 +55,12 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
 
     # Get the inTotalExcel file and relative worksheets
     inTotalWorkbook = inTotalExcel.writer.book
-    inTotalFilteredSheet = inTotalWorkbook.get_worksheet_by_name("Inherited Total Filtered T.")
+    inTotalSheet = inTotalWorkbook.get_worksheet_by_name("Inherited Total Triples")
 
     # Elaborate the fileName of the vocabulary
-    inFileName = date + "_Inherited_Filtered_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "_"
+    inFileName = date + "_Inherited_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "_"
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(0, str(os.path.join(vocabFolder, inFileName + "0.xlsx")), "Inherited Single Filtered T.")
+    inSingleExcel, inSingleWorkbook, inSingleSheet = newExcel(0, str(os.path.join(vocabFolder, inFileName + "0.xlsx")), "Inherited Single Triples")
 
     tick = datetime.now()
 
@@ -88,12 +88,6 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
     # For each statement present in the graph obtained store the triples
     index = 0
     for subject, predicate, object_ in g:
-        """
-        # Save the full statement to the ExcelSheet FullTriples
-        inSingleFullSheet.write_row(inSingleExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-        inTotalFullSheet.write_row(totalExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-        """
-        
         # Compute the filtered statement of the Triples
         subjectTerm = subject.replace("/", "#").split("#")[-1]
         if(not len(subjectTerm) and len(subject.replace("/", "#").split("#")) > 1):
@@ -115,14 +109,13 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
             if(not len(objectTerm) and len(objectTerm.split(".")) > 1):
                 objectTerm = objectTerm.split(".")[-2]
         
-        # Save the Filtered statement to the List to be added to the DataFrame
-        #list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
-        list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+        # Save the statement to the List to be added to the DataFrame
+        list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "SubjectTerm": subjectTerm, "PredicateTerm": predicateTerm, "ObjectTerm": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
         index += 1
         
-        # Save the Filtered statement to the ExcelSheet FilteredTriples
-        inSingleFilteredSheet.write_row(inSingleExcel.index, 0, (date, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-        inTotalFilteredSheet.write_row(inTotalExcel.index, 0, (date, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+        # Save the statement to the ExcelSheet Triples
+        inSingleSheet.write_row(inSingleExcel.index, 0, (date, subject, predicate, object_, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+        inTotalSheet.write_row(inTotalExcel.index, 0, (date, subject, predicate, object_, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
         # Update the index of both the ExcelSheets
         inSingleExcel.index += 1
         inTotalExcel.index += 1
@@ -133,7 +126,7 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
             inSingleWorkbook.close()
             inSingleExcel.writer.save()
             # Create a new ExcelFile
-            inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(inSingleExcel.num, str(os.path.join(vocabFolder, inFileName + str(inSingleExcel.num) + ".xlsx")), "Inherited Single Filtered T.")
+            inSingleExcel, inSingleWorkbook, inSingleSheet = newExcel(inSingleExcel.num, str(os.path.join(vocabFolder, inFileName + str(inSingleExcel.num) + ".xlsx")), "Inherited Single Triples")
             
         # If the rows of totalExcel reach the excel limit then create a new ExcelFile
         if(inTotalExcel.index == 1048575):
@@ -141,35 +134,23 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
             inTotalWorkbook.close()
             inTotalExcel.writer.save()
             # Create a new ExcelFile
-            inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Inherited Total Filtered T.")
+            inTotalExcel, inTotalWorkbook, inTotalSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Inherited_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Inherited Total Triples")
 
         for node in nxGT:
-            #for n in nxGT.adj[node]:
             for n in nxGT.neighbors(node):
-                if(str(n) == str(subject)):                    
-                    """
-                    # Save the full statement to the ExcelSheet FullTriples
-                    inSingleFullSheet.write_row(inSingleExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-                    inTotalFullSheet.write_row(totalExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-                    """
-                    
+                if(str(n) == str(subject)):
                     # Compute the filtered statement of the Triples
                     nodeTerm = node.replace("/", "#").split("#")[-1]
                     if(not len(nodeTerm) and len(node.replace("/", "#").split("#")) > 1):
                         nodeTerm = node.replace("/", "#").split("#")[-2]
-                    if(row["prefix"] == "FreeBase"):
-                        nodeTerm = nodeTerm.split(".")[-1]
-                        if(not len(nodeTerm) and len(nodeTerm.split(".")) > 1):
-                            nodeTerm = nodeTerm.split(".")[-2]
                     
-                    # Save the Filtered statement to the List to be added to the DataFrame
-                    #list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
-                    list_.insert(index,{"Date": date, "Subject": nodeTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+                    # Save the statement to the List to be added to the DataFrame
+                    list_.insert(index,{"Date": date, "Subject": node, "Predicate": predicate, "Object": object_, "SubjectTerm": nodeTerm, "PredicateTerm": predicateTerm, "ObjectTerm": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
                     index += 1
                     
-                    # Save the Filtered statement to the ExcelSheet FilteredTriples
-                    inSingleFilteredSheet.write_row(inSingleExcel.index, 0, (date, nodeTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-                    inTotalFilteredSheet.write_row(inTotalExcel.index, 0, (date, nodeTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+                    # Save the statement to the ExcelSheet Triples
+                    inSingleSheet.write_row(inSingleExcel.index, 0, (date, node, predicate, object_, nodeTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+                    inTotalSheet.write_row(inTotalExcel.index, 0, (date, node, predicate, object_, nodeTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
                     # Update the index of both the ExcelSheets
                     inSingleExcel.index += 1
                     inTotalExcel.index += 1
@@ -180,7 +161,7 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
                         inSingleWorkbook.close()
                         inSingleExcel.writer.save()
                         # Create a new ExcelFile
-                        inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(inSingleExcel.num, str(os.path.join(vocabFolder, inFileName + str(inSingleExcel.num) + ".xlsx")), "Inherited Single Filtered T.")
+                        inSingleExcel, inSingleWorkbook, inSingleSheet = newExcel(inSingleExcel.num, str(os.path.join(vocabFolder, inFileName + str(inSingleExcel.num) + ".xlsx")), "Inherited Single Triples")
                         
                     # If the rows of totalExcel reach the excel limit then create a new ExcelFile
                     if(inTotalExcel.index == 1048575):
@@ -188,7 +169,7 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
                         inTotalWorkbook.close()
                         inTotalExcel.writer.save()
                         # Create a new ExcelFile
-                        inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Inherited Total Filtered T.")
+                        inTotalExcel, inTotalWorkbook, inTotalSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Inherited_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Inherited Total Triples")
                         
 
     # Close the Excel file of the single vocabulary
@@ -219,8 +200,8 @@ def newExcel(excelNum, fileName, sheetName):
     workbook  = writer.book
     # Add WorkSheet with relative titles and relative bold header 
     worksheet = workbook.add_worksheet(sheetName)
-    worksheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), workbook.add_format({"bold": True}))
-    worksheet.set_column(0, 8, 30)
+    worksheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "SubjectTerm", "PredicateTerm", "ObjectTerm", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), workbook.add_format({"bold": True}))
+    worksheet.set_column(0, 12, 30)
     # Return the new excelFile_, workbook, worksheet
     return excelFile_, workbook, worksheet
 
@@ -277,10 +258,10 @@ def rm_main(vocabs):
     date = time.strftime("%Y-%m-%d", time.gmtime())
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(0, str(os.path.join(location, date + "_Inherited_Filtered_Knowledge-Triples_0.xlsx")), "Inherited Total Filtered T.")
+    inTotalExcel, inTotalWorkbook, inTotalSheet = newExcel(0, str(os.path.join(location, date + "_Inherited_Knowledge-Triples_0.xlsx")), "Inherited Total Triples")
 
     # Create the DataFrame to save the vocabs' Date of parsing, Subject, Predicate, Object, Domain, Domain Version, Domain Date, URI, Title, Languages
-    df = pd.DataFrame(columns=["Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"])
+    df = pd.DataFrame(columns=["Date", "Subject", "Predicate", "Object", "SubjectTerm", "PredicateTerm", "ObjectTerm", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"])
 
     # Iterate for every vocabulary read from the second argument
     for index, row in vocabs.iterrows():
