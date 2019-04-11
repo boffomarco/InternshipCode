@@ -1,13 +1,21 @@
 # Import libraries
 import rdflib
-from rdflib import Graph
+from rdflib import Graph, RDFS
 from rdflib.util import guess_format
 from rdflib.plugins.parsers.notation3 import N3Parser
 import pandas as pd
 import os
 import time
+import networkx as nx
 
 from datetime import datetime
+
+# Logs the date with the string str to track errors 
+def log(str_):
+    ts = time.strftime("%Y-%m-%d %H:%M:%S - ", time.gmtime())
+    f = open(os.path.normpath(os.path.expanduser("~/Desktop/K-Files/log.txt")), "a+")
+    f.write(ts + str(str_) + "\n")
+    f.close()
 
 # Class to handle the Excel file and relative indexes
 class ExcelFile:
@@ -18,6 +26,13 @@ class ExcelFile:
 
 # Parse the given file and add its information to the file Excel given as third parameter
 def parse(vocabFolder, date, row, inTotalExcel, list_):
+
+    print(row["prefix"])
+    log(row["prefix"])
+
+    tick_ = datetime.now()
+    tick = datetime.now()
+
     # Try to create the graph to analyze the vocabulary
     try:
         g = Graph()
@@ -31,7 +46,12 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
         print(str(e) + "\n")    
         return inTotalExcel, list_, 0
 
-    print(row["prefix"])
+    tock = datetime.now()   
+    diff = tock - tick    # the result is a datetime.timedelta object
+    log("Parsing took " + str(diff.total_seconds()) + " seconds") 
+
+    # Print number of rows before inheritance
+    log(len(result))
 
     # Get the inTotalExcel file and relative worksheets
     inTotalWorkbook = inTotalExcel.writer.book
@@ -40,20 +60,34 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
     # Elaborate the fileName of the vocabulary
     inFileName = date + "_Inherited_Filtered_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "_"
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(0, str(os.path.join(vocabFolder, inFileName + "0.xlsx")), "Single Inherited Filtered T.")
+    inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(0, str(os.path.join(vocabFolder, inFileName + "0.xlsx")), "Inherited Single Filtered T.")
+
+    tick = datetime.now()
 
     # Create the DataFrame used to save the table used to handle the inheritance relations
     inherit = pd.DataFrame(columns=["Subject", "subOf", "subbed"])
     # Create the set used to check if new Subject inheritance relation has to be added or if existing Subject inheritance relation has to be updated
     set_ = set()
+    # Save inheritance relation between subject and object
+    for s, o in g.subject_objects(RDFS.subClassOf):
+        inherit, set_ = setInheritance(str(s), str(o), inherit, set_)
+
+    nxG = createNXGraph(inherit)
+
+    nxGT = nx.transitive_closure(nxG)
+
+    tock = datetime.now()   
+    diff = tock - tick    # the result is a datetime.timedelta object
+    log("Inheritance took " + str(diff.total_seconds()) + " seconds") 
+    
+    # Print number of rows of inheritance relations
+    log(len(nxGT))
+
+    tick = datetime.now()
+
     # For each statement present in the graph obtained store the triples
     index = 0
     for subject, predicate, object_ in g:
-
-        # Save inheritance relation between subject and object
-        if("subClassOf" in predicate or "subPropertyOf" in predicate):
-            inherit, set_ = setInheritance(str(subject), str(object_), inherit, set_)
-
         """
         # Save the full statement to the ExcelSheet FullTriples
         inSingleFullSheet.write_row(inSingleExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
@@ -99,95 +133,79 @@ def parse(vocabFolder, date, row, inTotalExcel, list_):
             inSingleWorkbook.close()
             inSingleExcel.writer.save()
             # Create a new ExcelFile
-            inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(inSingleExcel.num, str(os.path.join(vocabFolder, inFileName + str(inSingleExcel.num) + ".xlsx")), "Single Filtered Triples")
+            inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(inSingleExcel.num, str(os.path.join(vocabFolder, inFileName + str(inSingleExcel.num) + ".xlsx")), "Inherited Single Filtered T.")
             
         # If the rows of totalExcel reach the excel limit then create a new ExcelFile
         if(inTotalExcel.index == 1048575):
             #Close the ExcelFile
-            inTotalExcel.book.close()
+            inTotalWorkbook.close()
             inTotalExcel.writer.save()
             # Create a new ExcelFile
-            inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Total Filtered Triples")
+            inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Inherited Total Filtered T.")
 
-    # Print number of rows before inheritance
-    print(index)
-
-    # Add the inheritance relative triples
-    if(len(inherit)):
-        # Generate the list with all the relative inherited triples
-        check, inList, inIndex, inherit = addInheritance(g, inherit)
-        # Iteratively repeat the controls to add all the inherited triples
-        while(check):
-            # Iterate on every element/triple of the list and add the value to the excel files
-            for element in inList:
-                # Extract the triple from the element
-                subject = element["Subject"]
-                predicate = element["Predicate"]
-                object_ = element["Object"]
-
-                """
-                # Save the full statement to the ExcelSheet FullTriples
-                inSingleFullSheet.write_row(inSingleExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-                inTotalFullSheet.write_row(totalExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-                """
-                # Compute the filtered statement of the Triples
-                subjectTerm = subject.replace("/", "#").split("#")[-1]
-                if(not len(subjectTerm) and len(subject.replace("/", "#").split("#")) > 1):
-                    subjectTerm = subject.replace("/", "#").split("#")[-2]
-                predicateTerm = predicate.replace("/", "#").split("#")[-1]
-                if(not len(predicateTerm) and len(predicate.replace("/", "#").split("#")) > 1):
-                    predicateTerm = predicate.replace("/", "#").split("#")[-2]
-                objectTerm = object_.replace("/", "#").split("#")[-1]
-                if(not len(objectTerm) and len(object_.replace("/", "#").split("#")) > 1):
-                    objectTerm = object_.replace("/", "#").split("#")[-2]
-                if(row["prefix"] == "FreeBase"):
-                    subjectTerm = subjectTerm.split(".")[-1]
-                    if(not len(subjectTerm) and len(subjectTerm.split(".")) > 1):
-                        subjectTerm = subjectTerm.split(".")[-2]
-                    predicateTerm = predicateTerm.split(".")[-1]
-                    if(not len(objectTerm) and len(predicateTerm.split(".")) > 1):
-                        predicateTerm = predicateTerm.split(".")[-2]
-                    objectTerm = objectTerm.split(".")[-1]
-                    if(not len(objectTerm) and len(objectTerm.split(".")) > 1):
-                        objectTerm = objectTerm.split(".")[-2]
-                
-                # Save the Filtered statement to the List to be added to the DataFrame
-                #list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
-                list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
-                index += 1
-                
-                # Save the Filtered statement to the ExcelSheet FilteredTriples
-                inSingleFilteredSheet.write_row(inSingleExcel.index, 0, (date, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-                inTotalFilteredSheet.write_row(inTotalExcel.index, 0, (date, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-                # Update the index of both the ExcelSheets
-                inSingleExcel.index += 1
-                inTotalExcel.index += 1
-
-                # If the rows of inSingleExcel reach the excel limit then create a new ExcelFile
-                if(inSingleExcel.index == 1048575):
-                    #Close the ExcelFile
-                    inSingleWorkbook.close()
-                    inSingleExcel.writer.save()
-                    # Create a new ExcelFile
-                    inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(inSingleExcel.num, str(os.path.join(vocabFolder, inFileName + str(inSingleExcel.num) + ".xlsx")), "Single Filtered Triples")
+        for node in nxGT:
+            #for n in nxGT.adj[node]:
+            for n in nxGT.neighbors(node):
+                if(str(n) == str(subject)):                    
+                    """
+                    # Save the full statement to the ExcelSheet FullTriples
+                    inSingleFullSheet.write_row(inSingleExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+                    inTotalFullSheet.write_row(totalExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+                    """
                     
-                # If the rows of totalExcel reach the excel limit then create a new ExcelFile
-                if(inTotalExcel.index == 1048575):
-                    #Close the ExcelFile
-                    inTotalExcel.book.close()
-                    inTotalExcel.writer.save()
-                    # Create a new ExcelFile
-                    inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Total Filtered Triples")
+                    # Compute the filtered statement of the Triples
+                    nodeTerm = node.replace("/", "#").split("#")[-1]
+                    if(not len(nodeTerm) and len(node.replace("/", "#").split("#")) > 1):
+                        nodeTerm = node.replace("/", "#").split("#")[-2]
+                    if(row["prefix"] == "FreeBase"):
+                        nodeTerm = nodeTerm.split(".")[-1]
+                        if(not len(nodeTerm) and len(nodeTerm.split(".")) > 1):
+                            nodeTerm = nodeTerm.split(".")[-2]
+                    
+                    # Save the Filtered statement to the List to be added to the DataFrame
+                    #list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+                    list_.insert(index,{"Date": date, "Subject": nodeTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+                    index += 1
+                    
+                    # Save the Filtered statement to the ExcelSheet FilteredTriples
+                    inSingleFilteredSheet.write_row(inSingleExcel.index, 0, (date, nodeTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+                    inTotalFilteredSheet.write_row(inTotalExcel.index, 0, (date, nodeTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+                    # Update the index of both the ExcelSheets
+                    inSingleExcel.index += 1
+                    inTotalExcel.index += 1
 
-            # Generate the list with all the relative inherited triples
-            check, inList, inIndex, inherit = addInheritance(g, inherit)
-
-    # Print number of rows after inheritance
-    print(index)
+                    # If the rows of inSingleExcel reach the excel limit then create a new ExcelFile
+                    if(inSingleExcel.index == 1048575):
+                        #Close the ExcelFile
+                        inSingleWorkbook.close()
+                        inSingleExcel.writer.save()
+                        # Create a new ExcelFile
+                        inSingleExcel, inSingleWorkbook, inSingleFilteredSheet = newExcel(inSingleExcel.num, str(os.path.join(vocabFolder, inFileName + str(inSingleExcel.num) + ".xlsx")), "Inherited Single Filtered T.")
+                        
+                    # If the rows of totalExcel reach the excel limit then create a new ExcelFile
+                    if(inTotalExcel.index == 1048575):
+                        #Close the ExcelFile
+                        inTotalWorkbook.close()
+                        inTotalExcel.writer.save()
+                        # Create a new ExcelFile
+                        inTotalExcel, inTotalWorkbook, inTotalFilteredSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Inherited Total Filtered T.")
+                        
 
     # Close the Excel file of the single vocabulary
     inSingleExcel.writer.book.close()
     inSingleExcel.writer.save()
+
+    tock = datetime.now()   
+    diff = tock - tick    # the result is a datetime.timedelta object
+    log("Storing took " + str(diff.total_seconds()) + " seconds") 
+
+    # Print number of rows after inheritance
+    log(index)
+
+    tock_ = datetime.now()   
+    diff_ = tock_ - tick_    # the result is a datetime.timedelta object
+    log("Inheriting took " + str(diff_.total_seconds()) + " seconds" + "\n") 
+    print("Inheriting took " + str(diff_.total_seconds()) + " seconds") 
 
     # Return the List to be added to the DataFrame and the relative index
     return inTotalExcel, list_, index
@@ -225,107 +243,28 @@ def setInheritance(subject, object_, inherit, set_):
     # Return the dataframe and set relative to inheritance
     return inherit, set_
 
-# Add the inherited triples to a list
-def addInheritance(g, inherit):
-    # Get the set of subjects/terms that need inheritance
-    termL = set()
-    # Get the set of objects that need to be inherited
-    subL = set()
+def createNXGraph(inherit):
+    nxG = nx.DiGraph()
+
+    nodes = set()
+
     # Iterate over every element of the dataframe containing the informations about inheritance
     for index, row in inherit.iterrows():
-        subEq = False
         # Get the relative inheritable objects of a subject
         subOfs = str(inherit.at[str(row["Subject"]), "subOf"])
+        l = len(nodes)
+        nodes.add(str(row["Subject"]))
+        if(len(nodes) > l):
+            nxG.add_node(str(row["Subject"]))
         for sub in subOfs.split(" , "):
             # Get the relative already inherited objects of a subject
-            subs = str(inherit.at[str(row["Subject"]), "subbed"])
-            # Add an inheritable object only if it has not already been inherited
-            if(sub not in subs.split(" , ")):
-                subL.add(sub)
-                subEq = True
-        # Add a subject/term only if it has to get other inheritances
-        if(subEq):
-            term = str(row["Subject"])
-            termL.add(term)
+            l = len(nodes)
+            nodes.add(sub)
+            if(len(nodes) > l):
+                nxG.add_node(sub)
+            nxG.add_edge(str(row["Subject"]), sub)
 
-    # Return False if there is nothing to be added
-    if(not len(subL)):
-        return False, list(), 0, inherit
-
-    # Create a new set to contain only those objects that has already inherited every inheritable objects
-    toSubList = subL.copy()
-    # Remove from the set of subOfs to get the terms on top that has to be inherited
-    # Iterate over every combination on subjects/terms and objects/subs
-    for term in termL:
-        for sub in subL:
-            # If an subject/term still needs inheritance, remove it from the set of inheritable objects
-            if(term == sub):
-                toSubList.remove(term)
-
-    # Create the list and index used to contain all the inherited triples
-    inList_ = list()
-    inIndex = 0
-    # Continue only in case of inheritance
-    if(len(toSubList)):
-        # Create the set of subjects/termList that needs immediate inheritance
-        termList = set()
-        # Iterate over every subject/term that need inheritance
-        for term in termL:
-            # Create a set for every subject/term, containing its relative inheritable objects/sub
-            subL = set()
-            # Get and iterate over the already inheritable objects/subOfs of the subject/term
-            subOfs = str(inherit.at[term, "subOf"])
-            for sub in subOfs.split(" , "):
-                # Add the inheritable objects to the set of the subject/term
-                subL.add(sub)
-            # Iterate over every object/toSub that is going to be inherited
-            for toSub in toSubList:
-                # If this object/toSub is a subject, then inherit also its relative objects/subOfs
-                if(toSub in inherit["Subject"]):
-                    # Get and iterate over the inherited objects/toSubOfs of the object/toSub that need inheritance from the subject/term
-                    toSubOfs = str(inherit.at[toSub, "subOf"])
-                    for sub in toSubOfs.split(" , "):
-                        # Compute the length of the subject/term's set
-                        a = len(subL)
-                        # Add the inheritable object/sub to the set of the subject/term
-                        subL.add(sub)
-                        # Check if the length now is bigger, i.e. a new object/sub has been added
-                        if(a < len(subL)):
-                            # Add the new object/sub to the inheritable objects/subOfs on the subject/term set and relative row of the dataframe
-                            subOfs = str(inherit.at[term, "subOf"])
-                            inherit.at[term, "subOf"] = subOfs + " , " + sub
-            # Add only the terms that can inherit object/toSub
-            if(toSub in str(inherit.at[term, "subOf"])):
-                termList.add(term)
-
-        # Iterate over every subject/term that needs inheritance
-        for term in termList:
-            # Get the inheritable objects/subOfs of the subject/term
-            subOfs = str(inherit.at[term, "subOf"])
-            # Iterate over every object/toSub that is going to be inherited
-            for toSub in toSubList:
-                # If the combination match, i.e. a subject/term needs to inherit from the object/toSub
-                if(toSub in subOfs):
-                    # Get the already inherited/subbed objects/subs of the subject/term
-                    subs = str(inherit.at[term, "subbed"])
-                    # Add the object/toSub to the already inherited/subbed objects/subs of the subject/term
-                    inherit.at[term, "subbed"] = subs + " , " + str(toSub)
-
-                    # Add the triples having the object/toSub as Subject as if the subject/term is the actual Subject 
-                    # Iterate over every triple of the graph
-                    for subject, predicate, object_ in g:
-                        # If the object/toSub acts as Subject of that triple
-                        if(toSub in subject):
-                            # Add the triple as if the subject/term is the actual Subject 
-                            inList_.insert(inIndex, {"Subject": str(term), "Predicate": str(predicate), "Object": str(object_)})
-                            inIndex += 1
-
-        # Return True, the list with the inherited triples and the relative index number
-        return True, inList_, inIndex, inherit
-    # If there is nothing to be added
-    else: 
-        # Return False
-        return False, inList_, 0, inherit
+    return nxG
 
 # Mandatory function for RapidMiner
 def rm_main(vocabs):
