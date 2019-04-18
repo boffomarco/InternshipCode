@@ -15,7 +15,7 @@ class ExcelFile:
         self.num = num + 1
 
 # Parse the given file and add its information to the file Excel given as third parameter
-def parse(vocabFolder, date, row, totalExcel, list_):
+def parse(vocabFolder, date, row, totalExcel, list_, predicates):
     # Try to create the graph to analyze the vocabulary
     try:
         g = Graph()
@@ -51,52 +51,52 @@ def parse(vocabFolder, date, row, totalExcel, list_):
     # For each statement present in the graph obtained store the triples
     index = 0
     for subject, predicate, object_ in g:
-        # Save the full statement to the ExcelSheet FullTriples
-        singleFullSheet.write_row(singleExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-        totalFullSheet.write_row(totalExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
-        # Update the index of both the ExcelFiles
-        singleExcel.index += 1
-        totalExcel.index += 1
-
         # Compute the filtered statement of the Triples
-        subjectTerm = subject.replace("/", "#").split("#")[-1]
-        if(not len(subjectTerm) and len(subject.replace("/", "#").split("#")) > 1):
-            subjectTerm = subject.replace("/", "#").split("#")[-2]
         predicateTerm = predicate.replace("/", "#").split("#")[-1]
         if(not len(predicateTerm) and len(predicate.replace("/", "#").split("#")) > 1):
             predicateTerm = predicate.replace("/", "#").split("#")[-2]
-        objectTerm = object_.replace("/", "#").split("#")[-1]
-        if(not len(objectTerm) and len(object_.replace("/", "#").split("#")) > 1):
-            objectTerm = object_.replace("/", "#").split("#")[-2]
         if(row["prefix"] == "FreeBase"):
-            subjectTerm = subjectTerm.split(".")[-1]
-            if(not len(subjectTerm) and len(subjectTerm.split(".")) > 1):
-                subjectTerm = subjectTerm.split(".")[-2]
             predicateTerm = predicateTerm.split(".")[-1]
             if(not len(objectTerm) and len(predicateTerm.split(".")) > 1):
                 predicateTerm = predicateTerm.split(".")[-2]
-            objectTerm = objectTerm.split(".")[-1]
-            if(not len(objectTerm) and len(objectTerm.split(".")) > 1):
-                objectTerm = objectTerm.split(".")[-2]
 
-        # Save the Filtered statement to the List to be added to the DataFrame
-        list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
-        index += 1
+        # Check if the triple has to be saved, if there is a predicate selection then checks if that predicate has to be saved
+        bool_ = False
+        # If there is no predicate selection then save every triple
+        if(len(predicates) == 0):
+            bool_ = True
+        # If there is a predicate selection then check if that predicate has to be saved
+        else:
+            for pred in predicates["Predicate"]:
+                if(pred == str(predicateTerm) or pred == str(predicate)):
+                    bool_ = True
+                    break
+        # Check if the triple has to be saved
+        if(bool_ == True):
+            # Save the full statement to the ExcelSheet FullTriples
+            singleFullSheet.write_row(singleExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+            totalFullSheet.write_row(totalExcel.index, 0, (date, subject, predicate, object_, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))
+            # Update the index of both the ExcelFiles
+            singleExcel.index += 1
+            totalExcel.index += 1
+            # Save the Full statement to the List to be added to the DataFrame
+            list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+            index += 1
 
-        # If the rows reach the excel limit then create a new ExcelFile
-        if(singleExcel.index == 1048575):
-            #Close the ExcelFile
-            singleWorkbook.close()
-            singleExcel.writer.save()
-            # Create a new ExcelFile
-            singleExcel, singleWorkbook, singleFullSheet = newExcel(singleExcel.num, str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), "Single Full Triples")
-        # If the rows reach the excel limit then create a new ExcelFile
-        if(totalExcel.index == 1048575):
-            #Close the ExcelFile
-            totalExcel.writer.book.close()
-            totalExcel.writer.save()
-            # Create a new ExcelFile
-            totalExcel, totalWorkbook, totalFullSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Full_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Full Triples")
+            # If the rows reach the excel limit then create a new ExcelFile
+            if(singleExcel.index == 1048575):
+                #Close the ExcelFile
+                singleWorkbook.close()
+                singleExcel.writer.save()
+                # Create a new ExcelFile
+                singleExcel, singleWorkbook, singleFullSheet = newExcel(singleExcel.num, str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), "Single Full Triples")
+            # If the rows reach the excel limit then create a new ExcelFile
+            if(totalExcel.index == 1048575):
+                #Close the ExcelFile
+                totalExcel.writer.book.close()
+                totalExcel.writer.save()
+                # Create a new ExcelFile
+                totalExcel, totalWorkbook, totalFullSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Full_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Full Triples")
 
     # Close the Excel file of the single vocabulary
     singleExcel.writer.book.close()
@@ -131,7 +131,7 @@ def newExcel(excelNum, fileName, sheetName):
     return excelFile_, workbook, worksheet
 
 # Mandatory function for RapidMiner
-def rm_main(vocabs):
+def rm_main(vocabs, predicates = pd.DataFrame()):
     # Create the folder used to store the results
     location = os.path.normpath(os.path.expanduser("~/Desktop/K-Files/"))
     if not os.path.isdir(location):
@@ -154,7 +154,7 @@ def rm_main(vocabs):
             os.makedirs(vocabFolder)
         
         # Add information for each vocabulary
-        totalExcel, list_, i = parse(vocabFolder, date, row, totalExcel, list())
+        totalExcel, list_, i = parse(vocabFolder, date, row, totalExcel, list(), predicates)
         # Save the information on the DataFrame for each vocabulary
         if(i and len(list_)):
             df = df.append(list_)
@@ -167,5 +167,6 @@ def rm_main(vocabs):
     return df
 
 test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Internship/KnowDive/resources/KnowledgeLatest.xlsx")))
-DTF = rm_main(test)
+PrTest = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Internship/InternshipCode/RapidMinerCode/knowledgeFilter/Predicate.xlsx")))
+DTF = rm_main(test, PrTest)
 DTF.to_csv(os.path.normpath(os.path.expanduser("~/Desktop/K-Files/FilteredTriples.csv")))
