@@ -136,7 +136,7 @@ def newExcel(excelNum, fileName, sheetName):
     workbook  = writer.book
     # Add WorkSheet with relative titles and relative bold header 
     worksheet = workbook.add_worksheet(sheetName)
-    worksheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), workbook.add_format({"bold": True}))
+    worksheet.write_row(0, 0, ("Date", "SubjectTerm", "PredicateTerm", "ObjectTerm", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), workbook.add_format({"bold": True}))
     worksheet.set_column(0, 8, 30)
     # Return the new excelFile_, workbook, worksheet
     return excelFile_, workbook, worksheet
@@ -155,7 +155,7 @@ def rm_main(vocabs, predicates = pd.DataFrame()):
     totalExcel, totalWorkbook, totalFilteredSheet = newExcel(0, str(os.path.join(location, date + "_Filtered_Knowledge-Triples_0.xlsx")), "Total Filtered Triples")
 
     # Create the DataFrame to save the vocabs' Date of parsing, Subject, Predicate, Object, Domain, Domain Version, Domain Date, URI, Title, Languages
-    df = pd.DataFrame(columns=["Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"])
+    df = pd.DataFrame(columns=["Date", "SubjectTerm", "PredicateTerm", "ObjectTerm", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"])
 
     # Iterate for every vocabulary read from the second argument
     for index, row in vocabs.iterrows():

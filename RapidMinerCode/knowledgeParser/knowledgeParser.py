@@ -51,12 +51,12 @@ def parse(vocabFolder, date, row, totalExcel, list_, predicates):
     # Elaborate the fileName of the vocabulary
     fileName = date + "_Filtered_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "_"
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    singleExcel, singleWorkbook, singleFilteredSheet = newExcel(0, str(os.path.join(vocabFolder, fileName + "0.xlsx")), "Single Filtered Triples")
+    singleExcel, singleWorkbook, singleFilteredSheet = newExcel(0, str(os.path.join(vocabFolder, fileName + "0.xlsx")), "Single Filtered Triples", "SubjectTerm", "PredicateTerm", "ObjectTerm")
     """
     # Elaborate the fileName of the vocabulary
     fileName = date + "_Full_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "_"
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    singleExcel, singleWorkbook, singleFilteredSheet = newExcel(0, str(os.path.join(vocabFolder, fileName + "_0.xlsx")), "Single Full Triples")
+    singleExcel, singleWorkbook, singleFullSheet = newExcel(0, str(os.path.join(vocabFolder, fileName + "_0.xlsx")), "Single Full Triples", "Subject", "Predicate", "Object")
     """
     
     # For each statement present in the graph obtained store the triples
@@ -97,7 +97,7 @@ def parse(vocabFolder, date, row, totalExcel, list_, predicates):
         # Check if the triple has to be saved
         if(bool_ == True):
             # Save the Filtered statement to the List to be added to the DataFrame
-            list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+            list_.insert(index,{"Date": date, "SubjectTerm": subjectTerm, "PredicateTerm": predicateTerm, "ObjectTerm": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
             """
             list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
             """
@@ -119,9 +119,9 @@ def parse(vocabFolder, date, row, totalExcel, list_, predicates):
                 singleWorkbook.close()
                 singleExcel.writer.save()
                 # Create a new ExcelFile
-                singleExcel, singleWorkbook, singleFilteredSheet = newExcel(singleExcel.num, str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), "Single Filtered Triples")
+                singleExcel, singleWorkbook, singleFilteredSheet = newExcel(singleExcel.num, str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), "Single Filtered Triples", "SubjectTerm", "PredicateTerm", "ObjectTerm")
                 """
-                singleExcel, singleWorkbook, singleFullSheet = newExcel(singleExcel.num, str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), "Single Full Triples")
+                singleExcel, singleWorkbook, singleFullSheet = newExcel(singleExcel.num, str(os.path.join(vocabFolder, fileName + str(singleExcel.num) + ".xlsx")), "Single Full Triples", "Subject", "Predicate", "Object")
                 """
             # If the rows reach the excel limit then create a new ExcelFile
             if(totalExcel.index == 1048575):
@@ -129,9 +129,9 @@ def parse(vocabFolder, date, row, totalExcel, list_, predicates):
                 totalExcel.writer.book.close()
                 totalExcel.writer.save()
                 # Create a new ExcelFile
-                totalExcel, totalWorkbook, totalFilteredSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Filtered Triples")
+                totalExcel, totalWorkbook, totalFilteredSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Filtered_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Filtered Triples", "SubjectTerm", "PredicateTerm", "ObjectTerm")
                 """
-                totalExcel, totalWorkbook, totalFullSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Full_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Full Triples")
+                totalExcel, totalWorkbook, totalFullSheet = newExcel(totalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Full_Knowledge-Triples_" + str(totalExcel.num) + ".xlsx")), "Total Full Triples", "Subject", "Predicate", "Object")
                 """
 
     # Close the Excel file of the single vocabulary
@@ -153,7 +153,7 @@ def serializeVoc(vocabFolder, fileName, g, format_):
         print(str(e) + "\n")
 
 # Create a new ExcelFile
-def newExcel(excelNum, fileName, sheetName):
+def newExcel(excelNum, fileName, sheetName, subj, pred, obj):
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     writer = pd.ExcelWriter(fileName, engine='xlsxwriter', options={'strings_to_urls': False, 'constant_memory': True, 'nan_inf_to_errors': True})
     excelFile_ = ExcelFile(writer, excelNum)
@@ -161,7 +161,7 @@ def newExcel(excelNum, fileName, sheetName):
     workbook  = writer.book
     # Add WorkSheet with relative titles and relative bold header 
     worksheet = workbook.add_worksheet(sheetName)
-    worksheet.write_row(0, 0, ("Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), workbook.add_format({"bold": True}))
+    worksheet.write_row(0, 0, ("Date", subj, pred, obj, "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"), workbook.add_format({"bold": True}))
     worksheet.set_column(0, 8, 30)
     # Return the new excelFile_, workbook, worksheet
     return excelFile_, workbook, worksheet
@@ -177,14 +177,17 @@ def rm_main(vocabs, predicates = pd.DataFrame()):
     date = time.strftime("%Y-%m-%d", time.gmtime())
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    totalExcel, totalWorkbook, totalFilteredSheet = newExcel(0, str(os.path.join(location, date + "_Filtered_Knowledge-Triples_0.xlsx")), "Total Filtered Triples")
+    totalExcel, totalWorkbook, totalFilteredSheet = newExcel(0, str(os.path.join(location, date + "_Filtered_Knowledge-Triples_0.xlsx")), "Total Filtered Triples", "SubjectTerm", "PredicateTerm", "ObjectTerm")
     """
-    totalExcel, totalWorkbook, totalFullSheet = newExcel(0, str(os.path.join(location, date + "_Full_Knowledge-Triples_0.xlsx")), "Total Full Triples")
+    totalExcel, totalWorkbook, totalFullSheet = newExcel(0, str(os.path.join(location, date + "_Full_Knowledge-Triples_0.xlsx")), "Total Full Triples", "Subject", "Predicate", "Object")
     """
 
     # Create the DataFrame to save the vocabs' Date of parsing, Subject, Predicate, Object, Domain, Domain Version, Domain Date, URI, Title, Languages
+    df = pd.DataFrame(columns=["Date", "SubjectTerm", "PredicateTerm", "ObjectTerm", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"])
+    """
     df = pd.DataFrame(columns=["Date", "Subject", "Predicate", "Object", "Domain", "Domain Version", "Domain Date", "URI", "Title", "Languages"])
-
+    """
+    
     # Iterate for every vocabulary read from the second argument
     for index, row in vocabs.iterrows():
         # Create the Folder 

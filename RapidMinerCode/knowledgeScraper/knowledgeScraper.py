@@ -64,17 +64,25 @@ def vocabPage(link, list_, index):
         # Store the last version with a single line on the list
         i = 0
         for version in range(0, len(versions)):
-            if("title" in versions[version].keys() and "start" in versions[version].keys() and "link" in versions[version].keys()):
-                versionName = versions[version]["title"].replace(" ","-").replace("\\","").replace("/","").replace(":","").replace("*","").replace("?","").replace("\"","").replace("<","").replace(">","").replace("|","")
-                list_.insert(index,{"prefix": prefix, "URI": uri, "Title": title, "Languages": languages, "VersionName": versionName, "VersionDate": versions[version]["start"], "Link": versions[version]["link"], "Folder": "LOV_Latest"})
-                i = 1
-                #break
+            # If the version has the relative link for the vocabulary the add it
+            if("link" in versions[version].keys()):
+                versionName = str(prefix) + "_" + str(i)
+                i += 1
+                if("title" in versions[version].keys()):
+                    versionName = versions[version]["title"].replace(" ","-").replace("\\","").replace("/","").replace(":","").replace("*","").replace("?","").replace("\"","").replace("<","").replace(">","").replace("|","")
+                versionDate = ""
+                if("start" in versions[version].keys()):
+                    versionDate = versions[version]["start"]
+                # Create the dictionary for a new version
+                versionD = {"prefix": prefix, "URI": uri, "Title": title, "Languages": languages, "VersionName": versionName, "VersionDate": versions[version]["start"], "Link": versions[version]["link"], "Folder": "LOV_Latest"}
+                # Add the version to the list
+                list_.append(versionD)
+                print(versionD)
         # Update the index for the next element of the list
-        index += i
+        index += (i/i)
     
     # Return the DataFrame to save the added vocab
     return list_, index
-
 
 # Mandatory function for RapidMiner
 def rm_main():

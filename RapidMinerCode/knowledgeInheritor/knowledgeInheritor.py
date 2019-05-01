@@ -149,8 +149,8 @@ def parse(vocabFolder, date, row, inTotalExcel, list_, predicates):
                 # Create a new ExcelFile
                 inTotalExcel, inTotalWorkbook, inTotalSheet = newExcel(inTotalExcel.num, str(os.path.join(os.path.dirname(vocabFolder), date + "_Inherited_Knowledge-Triples_" + str(inTotalExcel.num) + ".xlsx")), "Inherited Total Triples")
 
-            for n in nxGT:
-                for node in nxGT.neighbors(n):
+            for node in nxGT:
+                for n in nxGT.neighbors(node):
                     if(str(n) == str(object_)):
                         # Compute the filtered statement of the Triples
                         nodeTerm = node.replace("/", "#").split("#")[-1]
