@@ -67,7 +67,7 @@ def parse(vocabFolder, date, row, totalExcel, list_, predicates):
             bool_ = True
         # If there is a predicate selection then check if that predicate has to be saved
         else:
-            for pred in predicates["Predicate"]:
+            for pred in predicates[data.columns[0]]:
                 if(pred == str(predicateTerm) or pred == str(predicate)):
                     bool_ = True
                     break

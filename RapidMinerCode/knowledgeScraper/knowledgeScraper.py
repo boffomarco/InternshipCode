@@ -75,9 +75,9 @@ def vocabPage(link, list_, index):
                     versionDate = versions[version]["start"]
                 # Create the dictionary for a new version
                 versionD = {"prefix": prefix, "URI": uri, "Title": title, "Languages": languages, "VersionName": versionName, "VersionDate": versions[version]["start"], "Link": versions[version]["link"], "Folder": "LOV_Latest"}
-                # Add the version to the list
-                list_.append(versionD)
-                print(versionD)
+        # Add the version to the list
+        list_.append(versionD)
+        print(versionD)
         # Update the index for the next element of the list
         index += (i/i)
     
