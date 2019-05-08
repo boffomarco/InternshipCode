@@ -74,12 +74,14 @@ def vocabPage(link, list_, index):
                 if("start" in versions[version].keys()):
                     versionDate = versions[version]["start"]
                 # Create the dictionary for a new version
-                versionD = {"prefix": prefix, "URI": uri, "Title": title, "Languages": languages, "VersionName": versionName, "VersionDate": versions[version]["start"], "Link": versions[version]["link"], "Folder": "LOV_Latest"}
-        # Add the version to the list
-        list_.append(versionD)
-        print(versionD)
-        # Update the index for the next element of the list
-        index += (i/i)
+                versionD = {"prefix": prefix, "URI": uri, "Title": title, "Languages": languages, "VersionName": versionName, "VersionDate": versions[version]["start"], "Link": versions[version]["link"], "Folder": "LOV_Full"}
+                # Add the version to the list
+                list_.append(versionD)
+                print(versionD)
+        # If new versions has to be added
+        if(i):
+            # Update the index for the next element of the list
+            index += (i/i)
     
     # Return the DataFrame to save the added vocab
     return list_, index
