@@ -47,7 +47,7 @@ def vocabPage(link, groupId):
 def vocabMeta(soup, groupId):
 
     mysite = ckanapi.RemoteCKAN('http://127.0.0.1:5000',
-        apikey='fb24449a-aeb3-453a-ae9f-d16552ed40ce',
+        apikey='0587249a-c6e6-4b75-914a-075d88b16932',
         user_agent='liveschema/1.0 (+http://liveschema.org/)')
 
     # Get the title and prefix of the vocabulary 
@@ -135,7 +135,7 @@ def vocabMeta(soup, groupId):
     if(tag):
         for child in tag[0].find_all("li"):
             tagName = child.text.strip().decode('utf-8').lower()
-            tagName = ''.join([i for i in tagName if (i.isdigit() or i.isalpha() or i==" " or i=="_" or i=="." or i == "-")])
+            tagName = ''.join([i for i in tagName if (i.isdigit() or i.isalpha() or i==" " or i=="_" or i == "-")])
             tags.append({"name": tagName})
         package["tags"] = tags
 
@@ -149,7 +149,7 @@ def vocabMeta(soup, groupId):
         for version in range(0, len(versions)):
             versionName = ""
             if("title" in versions[version].keys() and "start" in versions[version].keys() and "link" in versions[version].keys()):
-                versionName = versions[version]["title"].replace(" ","-").replace("\\","").replace("/","").replace(":","").replace("*","").replace("?","").replace("\"","").replace("<","").replace(">","").replace("|","")
+                versionName = versions[version]["title"].replace(" ","-").replace(".","-").replace(";","-").replace("\\","").replace("/","").replace(":","").replace("*","").replace("?","").replace("\"","").replace("<","").replace(">","").replace("|","")
                 package["version"] = versionName
             if("link" in versions[version].keys()):
                 versionLink = versions[version]["link"]
@@ -161,13 +161,13 @@ def vocabMeta(soup, groupId):
                 versionEnd = versions[version]["end"]
                 package["extras"].append({"key": "modified", "value": versionEnd})
             
-
-            package["name"] = "lov_" + prefix + "_" + versionName + "_" + str(index)
+            package["name"] = "lov_" + prefix + "_" + versionName.decode('utf-8').lower() + "_" + str(index)
             package["title"] = title + " " + versionName
             index += 1
 
 
             #pprint.pprint(package)
+            print(package["name"])
             mysite.call_action("package_create", package)
 
             if("version" in package.keys()):
@@ -193,7 +193,7 @@ def log(str):
 
 #Clean the database
 mysite = ckanapi.RemoteCKAN('http://127.0.0.1:5000',
-    apikey='fb24449a-aeb3-453a-ae9f-d16552ed40ce',
+    apikey='0587249a-c6e6-4b75-914a-075d88b16932',
     user_agent='liveschema/1.0 (+http://liveschema.org/)')
 
 e = mysite.call_action('package_list')
