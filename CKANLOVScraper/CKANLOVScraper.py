@@ -147,6 +147,13 @@ def vocabMeta(soup, groupId):
         index = 0
         # Store every version with a line on the Excel File
         for version in range(0, len(versions)):
+            
+            if("version" in package.keys()):
+                del package["version"]
+            if("url" in package.keys()):
+                del package["url"]
+            package["extras"] = [i for i in package["extras"] if not ((i["key"] == "issued") or (i["key"] == "modified"))] 
+
             versionName = ""
             if("title" in versions[version].keys() and "start" in versions[version].keys() and "link" in versions[version].keys()):
                 versionName = versions[version]["title"].replace(" ","-").replace(".","-").replace(";","-").replace("\\","").replace("/","").replace(":","").replace("*","").replace("?","").replace("\"","").replace("<","").replace(">","").replace("|","")
@@ -154,6 +161,7 @@ def vocabMeta(soup, groupId):
             if("link" in versions[version].keys()):
                 versionLink = versions[version]["link"]
                 package["url"] = versionLink
+                package["extras"].append({"key": "linkVersion_" + str(index), "value": versionLink})
             if("start" in versions[version].keys()):
                 versionStart = versions[version]["start"]
                 package["extras"].append({"key": "issued", "value": versionStart})
@@ -165,20 +173,9 @@ def vocabMeta(soup, groupId):
             package["title"] = title + " " + versionName
             index += 1
 
-
-            #pprint.pprint(package)
-            print(package["name"])
-            mysite.call_action("package_create", package)
-
-            if("version" in package.keys()):
-                del package["version"]
-            if("url" in package.keys()):
-                del package["url"]
-            if("start" in versions[version].keys()):
-                package["extras"].remove({"key": "issued", "value": versionStart})
-            if("end" in versions[version].keys()):
-                package["extras"].remove({"key": "modified", "value": versionEnd})
-
+        #pprint.pprint(package)
+        print(package["name"])
+        mysite.call_action("package_create", package)
 
     log("Saved " + prefix + "\n")
     del package

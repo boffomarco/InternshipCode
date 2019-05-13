@@ -146,5 +146,66 @@ Provide the site’s URL (used when putting links to the site into the FileStore
 ## 10. Getting started
 ### https://docs.ckan.org/en/2.8/maintaining/getting-started.html
 
-## A. Deploying a source install
+## A. [Theming guide](https://docs.ckan.org/en/2.8/theming/index.html)
+### The following sections will teach you how to customize the content and appearance of CKAN pages by developing your own CKAN themes.
+
+## B. CKAN + DCAT
+### This extension provides plugins that allow CKAN to expose and consume metadata from other catalogs using RDF documents serialized using DCAT. The Data Catalog Vocabulary (DCAT) is “an RDF vocabulary designed to facilitate interoperability between data catalogs published on the Web”. More information can be found on the following W3C page: http://www.w3.org/TR/vocab-dcat
+### 1. Install ckanext-harvest (https://github.com/ckan/ckanext-harvest#installation) (Only if you want to use the RDF harvester)
+#### a. [Step Not Necessary] The harvest extension can use two different backends. You can choose whichever you prefer depending on your needs, but Redis has been found to be more stable and reliable so it is the recommended one: 
+#### Redis (recommended): To install it, run:
+    sudo apt-get update
+    sudo apt-get install redis-server
+#### b. On your CKAN configuration file(``development.ini``), add in the ``[app:main]`` section:
+    ckan.harvest.mq.type = redis
+#### c. Activate your CKAN virtual environment, for example:
+    . /usr/lib/ckan/default/bin/activate
+#### d. Install the ckanext-harvest Python package into your virtual environment:
+    pip install -e git+https://github.com/ckan/ckanext-harvest.git#egg=ckanext-harvest
+#### e. Install the python modules required by the extension (adjusting the path according to where ckanext-harvest was installed in the previous step):
+    cd /usr/lib/ckan/default/src/ckanext-harvest/
+    pip install -r pip-requirements.txt
+#### f. Make sure the CKAN configuration ini file contains the harvest main plugin, as well as the harvester for CKAN instances if you need it (included with the extension):
+    ckan.plugins = harvest ckan_harvester
+#### There are a number of configuration options available for the backends. These don't need to be modified at all if you are using the default Redis or RabbitMQ install (step 1). However you may wish to add them with custom options to the into the CKAN config file the [app:main] section. The list below shows the available options and their default values:
+#### Redis:
+    ckan.harvest.mq.hostname (localhost)
+    ckan.harvest.mq.port (6379)
+    ckan.harvest.mq.redis_db (0)
+    ckan.harvest.mq.password (None)
+### 2. Install the extension on your virtualenv(``default``):
+    pip install -e git+https://github.com/ckan/ckanext-dcat.git#egg=ckanext-dcat
+### 3. Install the extension requirements on your virtualenv(``default``):
+    cd /usr/lib/ckan/default/src/ckanext-dcat/
+    pip install -r requirements.txt
+### 4. Enable the required plugins in your ini file(``development.ini``):
+    ckan.plugins = dcat dcat_rdf_harvester dcat_json_harvester dcat_json_interface structured_data
+
+## C. [DataPusher - Automatically add Data to the CKAN DataStore](https://docs.ckan.org/projects/datapusher/en/latest/)
+### This application is a service that adds automatic CSV/Excel file loading to CKAN.
+### Development installation (not using your virtualenv(``default``))
+### 1. Install the required packages:
+    sudo apt-get install python-dev python-virtualenv build-essential libxslt1-dev libxml2-dev zlib1g-dev git libffi-dev
+### 2. Get the code:
+    cd /usr/lib/ckan/default/src
+    git clone https://github.com/ckan/datapusher
+    cd datapusher
+### 3. Install the dependencies:
+    pip install -r requirements.txt
+    pip install -e .
+### 4. Run the DataPusher:
+    python datapusher/main.py deployment/datapusher_settings.py
+### By default DataPusher should be running at the following port: http://localhost:8800/
+### If you need to change the host or port, copy deployment/datapusher_settings.py to deployment/datapusher_local_settings.py and modify the file.
+
+### 5. CKAN Configuration
+#### a. In order to tell CKAN where this webservice is located, the following must be added to the [app:main] section of your CKAN configuration file (generally located at /etc/ckan/default/development.ini):
+    ckan.datapusher.url = http://0.0.0.0:8800/
+#### b. The DataPusher also requires the ckan.site_url configuration option to be set on your configuration file:
+    ckan.site_url = http://127.0.0.1:5000
+#### c. If you are using at least CKAN 2.2, you just need to add datapusher to the plugins in your CKAN configuration file:
+    ckan.plugins = <other plugins> datapusher
+
+
+## Z. Deploying a source install
 ### If you want to use your CKAN site as a production site, not just for testing or development purposes, then deploy CKAN using a production web server such as Apache or Nginx. See [Deploying a source install](https://docs.ckan.org/en/2.8/maintaining/installing/deployment.html).
