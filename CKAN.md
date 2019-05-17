@@ -193,7 +193,9 @@ Provide the site’s URL (used when putting links to the site into the FileStore
 ### 3. Install the dependencies:
     pip install -r requirements.txt
     pip install -e .
-### 4. Run the DataPusher:
+### 4. Set Max Resource Size to 100MB instead of 10MB, edit /usr/lib/ckan/default/src/datapusher/datapusher/jobs.py
+    MAX_CONTENT_LENGTH = web.app.config.get('MAX_CONTENT_LENGTH') or 104857600 #Line 31
+### 5. Run the DataPusher:
     python datapusher/main.py deployment/datapusher_settings.py
 ### By default DataPusher should be running at the following port: http://localhost:8800/
 ### If you need to change the host or port, copy deployment/datapusher_settings.py to deployment/datapusher_local_settings.py and modify the file.
@@ -206,6 +208,46 @@ Provide the site’s URL (used when putting links to the site into the FileStore
 #### c. If you are using at least CKAN 2.2, you just need to add datapusher to the plugins in your CKAN configuration file:
     ckan.plugins = <other plugins> datapusher
 
+### 6. [File Upload](https://docs.ckan.org/en/2.8/maintaining/filestore.html)
+#### To setup CKAN’s FileStore with local file storage:
+#### a. Create the directory where CKAN will store uploaded files:
+    sudo mkdir -p /var/lib/ckan/default
+#### b. Add the following line to your CKAN config file, after the ``[app:main]`` line:
+    ckan.storage_path = /var/lib/ckan/default
+    ckan.max_resource_size = 100
+#### c. Set the permissions of your ckan.storage_path directory. For example if you’re running CKAN with Apache, then Apache’s user (www-data on Ubuntu) must have read, write and execute permissions for the ``ckan.storage_path``:
+    sudo chown www-data /var/lib/ckan/default
+    sudo chown -R `whoami` /var/lib/ckan/default
+    sudo chmod u+rwx /var/lib/ckan/default
+#### d. Restart your web server, for example to restart Apache:
+    sudo service apache2 reload
+
+### 8. [Customizing CKAN’s templates](https://docs.ckan.org/en/2.8/theming/templates.html)
+#### Creating a CKAN extension
+#### A CKAN theme is simply a CKAN plugin that contains some custom templates and static files, so before getting started on our CKAN theme we’ll have to create an extension and plugin. For a detailed explanation of the steps below, see Writing extensions tutorial.
+#### a. Use the ``paster create`` command to create an empty extension:
+    . /usr/lib/ckan/default/bin/activate
+    cd /usr/lib/ckan/default/src
+    paster --plugin=ckan create -t ckanext ckanext-example_theme
+#### b. Create the file ``ckanext-example_theme/ckanext/example_theme/plugin.py`` with the following contents:
+    # encoding: utf-8
+    import ckan.plugins as plugins
+    class ExampleThemePlugin(plugins.SingletonPlugin):
+        '''An example theme plugin.'''
+        pass
+#### c. Edit the ``entry_points`` in ``ckanext-example_theme/setup.py`` to look like this:
+    entry_points='''
+        [ckan.plugins]
+        example_theme=ckanext.example_theme.plugin:ExampleThemePlugin
+    ''',
+#### d. Run ``python setup.py develop``:
+    cd ckanext-example_theme
+    python setup.py develop
+#### e. Add the plugin to the ckan.plugins setting in your ``/etc/ckan/default/development.ini`` file:
+    ckan.plugins = stats text_view recline_view example_theme
+#### f. Start CKAN in the development web server:
+    paster serve --reload /etc/ckan/default/development.ini
+#### Open the CKAN front page in your web browser. If your plugin is in the ckan.plugins setting and CKAN starts without crashing, then your plugin is installed and CKAN can find it. Of course, your plugin doesn’t do anything yet.
 
 ## Z. Deploying a source install
 ### If you want to use your CKAN site as a production site, not just for testing or development purposes, then deploy CKAN using a production web server such as Apache or Nginx. See [Deploying a source install](https://docs.ckan.org/en/2.8/maintaining/installing/deployment.html).

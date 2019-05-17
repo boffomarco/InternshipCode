@@ -10,6 +10,23 @@ import ckanapi
 
 import pprint
 
+# Return the text relative to the link color
+def getLinkType(i):
+    if i == 0:
+        return "Specializes"
+    if i == 1:
+        return "Generalizes"
+    if i == 4:
+        return "Extends"
+    if i == 6:
+        return "Imports"
+    if i == 13:
+        return "Metadata"
+    if i == 14:
+        return "HasEquivalencesWith"
+    if i == 15:
+        return "HasDisjunctionWith"
+
 # Get all the vocabulary of that page
 def vocabList(link, url, end, groupId):
     # Connect to the URL
@@ -139,6 +156,47 @@ def vocabMeta(soup, groupId):
             tags.append({"name": tagName})
         package["tags"] = tags
 
+    # Get the statistics of the vocabulary
+    script = soup("script", {"src": None})[2].text.strip()
+    stats = re.compile(".datum\((.*?)\)")
+    stats = stats.search(script).group(1)
+    if(stats):
+        stats = json.loads(stats)[0]["values"]
+        classes = stats[0]["value"]
+        properties = stats[1]["value"]
+        datatypes = stats[2]["value"]
+        instances = stats[3]["value"]
+
+        packStats = "Classes: " + str(classes) + " - "
+        packStats = packStats + "Properties: " + str(properties) + " - "
+        packStats = packStats + "DataTypes: " + str(datatypes) + " - "
+        packStats = packStats + "Instances: " + str(instances)
+
+        package["extras"].append({"key": "Statistics", "value": packStats})
+
+    # Add the Expressivity of the vocabulary page to the excel file
+    exp = soup("ul", {"class": "expressivities"})
+    if(exp):
+        packExpr = ""
+        for child in exp[0].find_all("li"):
+            packExpr = packExpr + child.text.strip().decode('utf-8').lower() + " - "
+        package["extras"].append({"key": "Expressivity", "value": packExpr})
+
+    # Add the Links of the vocabulary page to the excel file
+    script = soup("script", {"src": None})[1].text.strip()
+    incomingLinks = re.compile("var graphIn = ((.|\n|\r)*?);")
+    incomingLinks = json.loads(incomingLinks.search(script).group(1))["nodes"]
+    packIn = ""
+    for link in range(1, len(incomingLinks)):
+        packIn = packIn + getLinkType(incomingLinks[link]["group"]) + " -> " + incomingLinks[link]["name"] + " - "
+    package["extras"].append({"key": "Incoming Links", "value": packIn})
+    outgoingLinks = re.compile("var graph = ((.|\n|\r)*?);")
+    outgoingLinks = json.loads(outgoingLinks.search(script).group(1))["nodes"]
+    packOut = ""
+    for link in range(1, len(outgoingLinks)):
+        packOut = packOut + getLinkType(outgoingLinks[link]["group"]) + " -> " + outgoingLinks[link]["name"] + " - "
+    package["extras"].append({"key": "Outgoing Links", "value": packOut})
+    
     # Get all the versions and save them with all their relative informations
     script = soup("script", {"src": None})[3].text.strip()
     versions = re.compile("{\"events\":(.|\n|\r)*?}]}").search(script)
