@@ -1,11 +1,12 @@
+#! /usr/bin/python3.6
 # Import libraries
 import pandas as pd
-import os
 
 # Mandatory function for RapidMiner
 def rm_main(data):
     # Drop the column 'in documents', that is equal to 'total'
-    data.drop("in documents", axis=1, inplace=True)
+    if("in documents" in data.columns):
+        data.drop("in documents", axis=1, inplace=True)
 
     # Create the DataFrame used to save the Cues
     cue = pd.DataFrame(columns=["Class","Cue1", "Cue2", "Cue3", "Cue4", "Cue5", "Cue6"])
@@ -130,12 +131,14 @@ def rm_main(data):
     # Return the 3 DataFrames for RapidMiner usage
     return data, cue, DTF
 
-test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/K-analysis-example-output.xlsx")))
+import os
+
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/OWL_List.xlsx")))
 #print(test)
 DataF, C, DTF = rm_main(test)
 #print(DataF)
 #print(C)
-DataF.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/SolAnalysis.xlsx")))
-C.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/CueAnalysis.xlsx")))
+DataF.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/FilteredData.xlsx")))
+C.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/CueData.xlsx")))
 #print(DTF)
-DTF.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/venn.xlsx")))
+DTF.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/CrossData.xlsx")))

@@ -85,7 +85,7 @@ def parse(vocabFolder, date, row, totalExcel, list_, predicates):
         # Check if the triple has to be saved
         if(bool_ == True):
             # Save the statement to the List to be added to the DataFrame
-            list_.insert(index,{"Date": date, "Subject": subjectTerm, "Predicate": predicateTerm, "Object": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
+            list_.insert(index,{"Date": date, "Subject": subject, "Predicate": predicate, "Object": object_, "SubjectTerm": subjectTerm, "PredicateTerm": predicateTerm, "ObjectTerm": objectTerm, "Domain": row["prefix"], "Domain Version": row["VersionName"], "Domain Date": row["VersionDate"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]})
             index += 1
             # Save the statement to the ExcelSheet Triples
             singleSheet.write_row(singleExcel.index, 0, (date, subject, predicate, object_, subjectTerm, predicateTerm, objectTerm, row["prefix"], row["VersionName"], row["VersionDate"], row["URI"], row["Title"], row["Languages"]))

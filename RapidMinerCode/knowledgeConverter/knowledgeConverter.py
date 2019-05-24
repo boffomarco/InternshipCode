@@ -55,7 +55,7 @@ def rm_main(data):
     g.bind("liveschema_test", n)
     
     # Create the DataFrame used to save the triples
-    triples = pd.DataFrame(columns=["Subject","Predicate", "Object"])
+    triples = pd.DataFrame(columns=["Subject","Predicate", "Object", "SubjectTerm","PredicateTerm", "ObjectTerm"])
 
     # Sort the DataFrame
     data = data.sort_values("total", ascending=False)
@@ -68,7 +68,7 @@ def rm_main(data):
         # Comment the Names
         for name in nameList:
             # Save the triple about Names having as comments the various name of which it is composed
-            triples = triples.append({"Subject": names, "Predicate": "comment", "Object": name}, ignore_index=True)
+            triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.comment), "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": name}, ignore_index=True)
             g.add((n[names], RDFS.comment, Literal(name)))
 
         # Create set to contain the different subClasses of Names
@@ -86,14 +86,14 @@ def rm_main(data):
                 bool_, subsAdded, namesRemaining = checkSub(names, rNames, subsAdded, namesRemaining)
                 if(bool_):
                     # Save the triple about rNames being subClassOf Names
-                    triples = triples.append({"Subject": rNames, "Predicate": "subClassOf", "Object": names}, ignore_index=True)
+                    triples = triples.append({"Subject": " "+str(n[rNames]), "Predicate": str(RDFS.subClassOf), "Object": " "+str(n[names]), "SubjectTerm": rNames, "PredicateTerm": "subClassOf", "ObjectTerm": names}, ignore_index=True)
                     g.add((n[rNames], RDFS.subClassOf, n[names]))
         # If the its a composition of at least 2 name, then add the remaining name as subClassOf
         if(len(nameList)>1):
             # Iterate over any remaining name
             for sub in namesRemaining:
                 # Save the triple about the single name being subClassOf Names
-                triples = triples.append({"Subject": sub, "Predicate": "subClassOf", "Object": names}, ignore_index=True)
+                triples = triples.append({"Subject": " "+str(n[sub]), "Predicate": str(RDFS.subClassOf), "Object": " "+str(n[names]), "SubjectTerm": sub, "PredicateTerm": "subClassOf", "ObjectTerm": names}, ignore_index=True)
                 g.add((n[sub], RDFS.subClassOf, n[names]))
 
         # Map every element into its domain
@@ -101,10 +101,10 @@ def rm_main(data):
         #print(elements)
         for element in elements:
             # Save the triple about the element being an ObjectProperty
-            triples = triples.append({"Subject": element, "Predicate": "type", "Object": "ObjectProperty"}, ignore_index=True)
+            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": str(RDF.type), "Object": str(OWL.ObjectProperty), "SubjectTerm": element, "PredicateTerm": "type", "ObjectTerm": "ObjectProperty"}, ignore_index=True)
             g.add((n[element], RDF.type, OWL.ObjectProperty))
             # Save the triple about the element being a domain of that Names
-            triples = triples.append({"Subject": element, "Predicate": "domain", "Object": names}, ignore_index=True)
+            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": str(RDFS.domain), "Object": " "+str(n[names]), "SubjectTerm": element, "PredicateTerm": "domain", "ObjectTerm": names}, ignore_index=True)
             g.add((n[element], RDFS.domain, n[names]))
 
     # Create the directory in which store the new vocabulary
@@ -121,6 +121,6 @@ def rm_main(data):
     # Return the triples DataFrame for RapidMiner usage
     return triples
 
-test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/DBPedia_CrossData.xlsx")))
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/CrossData.xlsx")))
 #print(test)
-rm_main(test).to_excel(os.path.normpath(os.path.expanduser("~/Desktop/DBPedia_Conv_C.xlsx")))
+rm_main(test).to_excel(os.path.normpath(os.path.expanduser("~/Desktop/OWL_Conv_C.xlsx")))

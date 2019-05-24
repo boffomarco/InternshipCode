@@ -20,7 +20,7 @@ def rm_main(triples, predicates = pd.DataFrame()):
         # Iterate for every triples present on the file passed on the argument 'triples'
         for index, row in triples.iterrows():
             # if a triple has a specified PredicateTerm or the predicates are not set
-            if((str(row["PredicateTerm"]) == str(r[data.columns[0]]))):
+            if((str(row["PredicateTerm"]) == str(r[predicates.columns[0]]))):
                 # Save that triple on the list
                 list_.insert(index_,{"Type": row["ObjectTerm"], "Property": row["SubjectTerm"]})
                 index_ += 1
