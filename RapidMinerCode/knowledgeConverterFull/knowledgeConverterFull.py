@@ -47,12 +47,13 @@ def checkBiggerSub(rNameL, subsAdded):
     return True
 
 # Mandatory function for RapidMiner
-def rm_main(data, orig, predicates = pd.DataFrame()):
+def rm_main(data, orig):
     # Create the graph used to store the vocabulary
     g = Graph()
     # Create the Namespace for the vocabulary
-    n = Namespace("http://www.liveschema.org/test/")
-    g.bind("liveschema_test", n)
+    strNameSpace = "http://liveschema.org/test"
+    n = Namespace(strNameSpace)
+    g.bind(strNameSpace.split("/")[-1], n)
     
     # Create the DataFrame used to save the triples
     triples = pd.DataFrame(columns=["Subject","Predicate", "Object", "SubjectTerm","PredicateTerm", "ObjectTerm"])
@@ -67,13 +68,16 @@ def rm_main(data, orig, predicates = pd.DataFrame()):
     for index, row in data.iterrows():
         # Format Names
         names = row["Names"].replace(" ","").replace("[","").replace("]","").replace("'","").replace(",", "_-_")
+        # Save a new triple about Names having as label a new concept
+        triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.label), "Object": str(Literal("concept#"+str(index))), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": "concept#"+str(index)}, ignore_index=True)
+        g.add((n[names], RDFS.label, Literal("concept#"+str(index))))
         # Split Names in the different name of its composition
         nameList = names.split("_-_")
-        # Comment the Names
+        # Label the Names
         for name in nameList:
-            # Save the triple about Names having as comments the various name of which it is composed
-            triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.comment), "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": name}, ignore_index=True)
-            g.add((n[names], RDFS.comment, Literal(name)))
+            # Save the triple about Names having as labels the various name of which it is composed
+            triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.label), "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": name}, ignore_index=True)
+            g.add((n[names], RDFS.label, Literal(name)))
 
         # Create set to contain the different subClasses of Names
         subsAdded = set()
@@ -116,11 +120,12 @@ def rm_main(data, orig, predicates = pd.DataFrame()):
             # Check if the triple has to be saved, if there is a predicate selection then checks if that predicate has to be saved
             bool_ = False
             # If there is no predicate selection then save every triple
-            if(len(predicates) == 0):
+            strPredicates = " "
+            if(len(strPredicates.split()) == 0):
                 bool_ = True
             # If there is a predicate selection then check if that predicate has to be saved
             else:
-                for pred in predicates[predicates.columns[0]]:
+                for pred in strPredicates.split():
                     if(pred == str(r["PredicateTerm"]) or pred == str(r["Predicate"])):
                         bool_ = True
                         break
@@ -133,10 +138,14 @@ def rm_main(data, orig, predicates = pd.DataFrame()):
                     if(name == r["SubjectTerm"]):
                         # Save the triple about the name being a SubjectTerm
                         triples = triples.append({"Subject": " "+str(n[name]), "Predicate": " "+str(n["isA"]), "Object": r["Subject"], "SubjectTerm": name, "PredicateTerm": "isA", "ObjectTerm": r["SubjectTerm"]}, ignore_index=True)
-                        g.add((n[name], n["isA"], Literal(r["Subject"])))
+                        g.add((n[name], n["isA"], URIRef(r["Subject"])))
                         # Save the triple about the name becoming the SubjectTerm in that triple
                         triples = triples.append({"Subject": " "+str(n[name]), "Predicate": r["Predicate"], "Object": r["Object"], "SubjectTerm": name, "PredicateTerm": r["PredicateTerm"], "ObjectTerm": r["ObjectTerm"]}, ignore_index=True)
-                        g.add((n[name], URIRef(r["Predicate"]), Literal(r["Object"])))
+                        # Add the triple to the graph as URIRef or Literal respectively
+                        if(len(r["Object"]) > 5 and "http" == r["Object"][0:3]):
+                            g.add((n[name], URIRef(r["Predicate"]), URIRef(r["Object"])))
+                        else:
+                            g.add((n[name], URIRef(r["Predicate"]), Literal(r["Object"])))
 
                 # Save the original element triples on the new graph
                 for element in elements:
@@ -154,20 +163,31 @@ def rm_main(data, orig, predicates = pd.DataFrame()):
                                     g.add((n[element], n["isA"], Literal(r["Subject"])))
                                     # Save the triple about the element becoming the SubjectTerm in that triple
                                     triples = triples.append({"Subject": " "+str(n[element]), "Predicate": r["Predicate"], "Object": r["Object"], "SubjectTerm": element, "PredicateTerm": r["PredicateTerm"], "ObjectTerm": r["ObjectTerm"]}, ignore_index=True)
-                                    g.add((n[element], URIRef(r["Predicate"]), Literal(r["Object"])))
+                                    # Add the triple to the graph as URIRef or Literal respectively
+                                    if(len(row["Object"]) > 5 and "http" == row["Object"][0:3]):
+                                        g.add((n[element], URIRef(r["Predicate"]), URIRef(r["Object"])))
+                                    else:
+                                        g.add((n[element], URIRef(r["Predicate"]), Literal(r["Object"])))
+                                    
                                 # Update the index
                                 a = i            
 
     # Create the directory in which store the new vocabulary
-    location = os.path.normpath(os.path.expanduser("~/Desktop/K-Files/Converted/"))
+    fileDestination = "~/Desktop/K-Files/Converted/testConverted.ttl"
+    location = os.path.normpath(os.path.expanduser("/".join(fileDestination.split("/")[0:-1])))
     if not os.path.isdir(location):
         os.makedirs(location)
     # Serialize the new vocabulary
-    g.serialize(destination=str(os.path.join(location, "test.rdf")), format="pretty-xml")
-    #g.serialize(destination=str(os.path.join(location, "test.n3")), format="n3")
-    #g.serialize(destination=str(os.path.join(location, "test.nt")), format="nt")
-    #g.serialize(destination=str(os.path.join(location, "test.ttl")), format="turtle")
-    #g.serialize(destination=str(os.path.join(location, "test.json-ld")), format="json-ld")
+    if("rdf" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="pretty-xml")
+    if("n3" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="n3")
+    if("nt" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="nt")
+    if("ttl" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="turtle")
+    if("json" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="json-ld")
 
     # Return the triples DataFrame for RapidMiner usage
     return triples

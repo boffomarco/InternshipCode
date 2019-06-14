@@ -8,15 +8,6 @@ import os
 import time
 import networkx as nx
 
-from datetime import datetime
-
-# Logs the date with the string str to track errors 
-def log(str_):
-    ts = time.strftime("%Y-%m-%d %H:%M:%S - ", time.gmtime())
-    f = open(os.path.normpath(os.path.expanduser("~/Desktop/K-Files/log.txt")), "a+")
-    f.write(ts + str(str_) + "\n")
-    f.close()
-
 # Class to handle the Excel file and relative indexes
 class ExcelFile:
     def __init__(self, writer, num = 0):
@@ -25,14 +16,7 @@ class ExcelFile:
         self.num = num + 1
 
 # Parse the given file and add its information to the file Excel given as third parameter
-def parse(vocabFolder, date, row, inTotalExcel, list_, predicates):
-
-    print(row["prefix"])
-    log(row["prefix"])
-
-    tick_ = datetime.now()
-    tick = datetime.now()
-
+def parse(vocabFolder, date, row, inTotalExcel, list_):
     # Try to create the graph to analyze the vocabulary
     try:
         g = Graph()
@@ -46,13 +30,6 @@ def parse(vocabFolder, date, row, inTotalExcel, list_, predicates):
         print(str(e) + "\n")    
         return inTotalExcel, list_, 0
 
-    tock = datetime.now()   
-    diff = tock - tick    # the result is a datetime.timedelta object
-    log("Parsing took " + str(diff.total_seconds()) + " seconds") 
-
-    # Print number of rows before inheritance
-    log(len(result))
-
     # Get the inTotalExcel file and relative worksheets
     inTotalWorkbook = inTotalExcel.writer.book
     inTotalSheet = inTotalWorkbook.get_worksheet_by_name("Inherited Total Triples")
@@ -61,8 +38,6 @@ def parse(vocabFolder, date, row, inTotalExcel, list_, predicates):
     inFileName = date + "_Inherited_" + row["prefix"] + "_" + row["VersionName"] + "_" + row["VersionDate"] + "_"
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     inSingleExcel, inSingleWorkbook, inSingleSheet = newExcel(0, str(os.path.join(vocabFolder, inFileName + "0.xlsx")), "Inherited Single Triples")
-
-    tick = datetime.now()
 
     # Create the DataFrame used to save the table used to handle the inheritance relations
     inherit = pd.DataFrame(columns=["Subject", "subOf", "subbed"])
@@ -75,15 +50,6 @@ def parse(vocabFolder, date, row, inTotalExcel, list_, predicates):
     nxG = createNXGraph(inherit)
     # Calculate the transitive_closure of the networkx graph to get all the possible inheritances
     nxGT = nx.transitive_closure(nxG)
-
-    tock = datetime.now()   
-    diff = tock - tick    # the result is a datetime.timedelta object
-    log("Inheritance took " + str(diff.total_seconds()) + " seconds") 
-    
-    # Print number of rows of inheritance relations
-    log(len(nxGT))
-
-    tick = datetime.now()
 
     # For each statement present in the graph obtained store the triples
     index = 0
@@ -112,11 +78,12 @@ def parse(vocabFolder, date, row, inTotalExcel, list_, predicates):
         # Check if the triple has to be saved, if there is a predicate selection then checks if that predicate has to be saved
         bool_ = False
         # If there is no predicate selection then save every triple
-        if(len(predicates) == 0):
+        strPredicates = " "
+        if(len(strPredicates.split()) == 0):
             bool_ = True
         # If there is a predicate selection then check if that predicate has to be saved
         else:
-            for pred in predicates[predicates.columns[0]]:
+            for pred in strPredicates.split():
                 if(pred == str(predicateTerm) or pred == str(predicate)):
                     bool_ = True
                     break
@@ -188,19 +155,7 @@ def parse(vocabFolder, date, row, inTotalExcel, list_, predicates):
     # Close the Excel file of the single vocabulary
     inSingleExcel.writer.book.close()
     inSingleExcel.writer.save()
-
-    tock = datetime.now()   
-    diff = tock - tick    # the result is a datetime.timedelta object
-    log("Storing took " + str(diff.total_seconds()) + " seconds") 
-
-    # Print number of rows after inheritance
-    log(index)
-
-    tock_ = datetime.now()   
-    diff_ = tock_ - tick_    # the result is a datetime.timedelta object
-    log("Inheriting took " + str(diff_.total_seconds()) + " seconds" + "\n") 
-    print("Inheriting took " + str(diff_.total_seconds()) + " seconds") 
-
+    
     # Return the List to be added to the DataFrame and the relative index
     return inTotalExcel, list_, index
 
@@ -264,9 +219,10 @@ def createNXGraph(inherit):
     return nxG
 
 # Mandatory function for RapidMiner
-def rm_main(vocabs, predicates = pd.DataFrame()):
+def rm_main(vocabs):
     # Create the folder used to store the results
-    location = os.path.normpath(os.path.expanduser("~/Desktop/K-Files/"))
+    folderDestination = "~/Desktop/K-Files/"
+    location = os.path.normpath(os.path.expanduser(folderDestination))
     if not os.path.isdir(location):
         os.makedirs(location)
 
@@ -285,9 +241,8 @@ def rm_main(vocabs, predicates = pd.DataFrame()):
         vocabFolder = str(os.path.join(location, row["Folder"]))
         if not os.path.isdir(vocabFolder):
             os.makedirs(vocabFolder)
-        print(row["Link"])
         # Add information for each vocabulary
-        inTotalExcel, list_, i = parse(vocabFolder, date, row, inTotalExcel, list(), predicates)
+        inTotalExcel, list_, i = parse(vocabFolder, date, row, inTotalExcel, list())
         # Save the information on the DataFrame for each vocabulary
         if(i and len(list_)):
             df = df.append(list_)

@@ -127,18 +127,25 @@ def rm_main(data):
     cue.at["KNOWLEDGE", 'Cue2'] = cue2
     cue.at["KNOWLEDGE", 'Cue3'] = cue3
 
+    # Iterate for every column present on data to format a new table in a UpSet CSV input file
+    upSet = pd.DataFrame()
+    upSet["word"] = data["word"]
+    for column in data:
+        if("in class" in column and "_123" in column):
+            upSet[column[10:-5]] = data[column]
 
-    # Return the 3 DataFrames for RapidMiner usage
-    return data, cue, DTF
+    # Return the 4 DataFrames for RapidMiner usage
+    return data, cue, DTF, upSet
 
 import os
 
-test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/OWL_List.xlsx")))
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Schema_List.xlsx")))
 #print(test)
-DataF, C, DTF = rm_main(test)
+DataF, C, DTF, upSet = rm_main(test)
 #print(DataF)
 #print(C)
 DataF.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/FilteredData.xlsx")))
 C.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/CueData.xlsx")))
 #print(DTF)
 DTF.to_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/CrossData.xlsx")))
+upSet.to_csv(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/upSet.csv")))

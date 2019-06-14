@@ -51,8 +51,9 @@ def rm_main(data):
     # Create the graph used to store the vocabulary
     g = Graph()
     # Create the Namespace for the vocabulary
-    n = Namespace("http://www.liveschema.org/test/")
-    g.bind("liveschema_test", n)
+    strNameSpace = "http://liveschema.org/test"
+    n = Namespace(strNameSpace)
+    g.bind(strNameSpace.split("/")[-1], n)
     
     # Create the DataFrame used to save the triples
     triples = pd.DataFrame(columns=["Subject","Predicate", "Object", "SubjectTerm","PredicateTerm", "ObjectTerm"])
@@ -63,13 +64,16 @@ def rm_main(data):
     for index, row in data.iterrows():
         # Format Names
         names = row["Names"].replace(" ","").replace("[","").replace("]","").replace("'","").replace(",", "_-_")
+        # Save a new triple about Names having as label a new concept
+        triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.label), "Object": str(Literal("concept#"+str(index))), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": "concept#"+str(index)}, ignore_index=True)
+        g.add((n[names], RDFS.label, Literal("concept#"+str(index))))
         # Split Names in the different name of its composition
         nameList = names.split("_-_")
-        # Comment the Names
+        # Label the Names
         for name in nameList:
-            # Save the triple about Names having as comments the various name of which it is composed
-            triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.comment), "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": name}, ignore_index=True)
-            g.add((n[names], RDFS.comment, Literal(name)))
+            # Save the triple about Names having as labels the various name of which it is composed
+            triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.label), "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": name}, ignore_index=True)
+            g.add((n[names], RDFS.label, Literal(name)))
 
         # Create set to contain the different subClasses of Names
         subsAdded = set()
@@ -108,19 +112,25 @@ def rm_main(data):
             g.add((n[element], RDFS.domain, n[names]))
 
     # Create the directory in which store the new vocabulary
-    location = os.path.normpath(os.path.expanduser("~/Desktop/K-Files/Converted/"))
+    fileDestination = "~/Desktop/K-Files/Converted/testConverted.ttl"
+    location = os.path.normpath(os.path.expanduser("/".join(fileDestination.split("/")[0:-1])))
     if not os.path.isdir(location):
         os.makedirs(location)
     # Serialize the new vocabulary
-    g.serialize(destination=str(os.path.join(location, "test.rdf")), format="pretty-xml")
-    #g.serialize(destination=str(os.path.join(location, "test.n3")), format="n3")
-    #g.serialize(destination=str(os.path.join(location, "test.nt")), format="nt")
-    #g.serialize(destination=str(os.path.join(location, "test.ttl")), format="turtle")
-    #g.serialize(destination=str(os.path.join(location, "test.json-ld")), format="json-ld")
+    if("rdf" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="pretty-xml")
+    if("n3" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="n3")
+    if("nt" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="nt")
+    if("ttl" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="turtle")
+    if("json" in fileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, fileDestination.split("/")[-1])), format="json-ld")
 
     # Return the triples DataFrame for RapidMiner usage
     return triples
 
-test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Documents/Internship/analysis-step/CrossData.xlsx")))
+test = pd.read_excel(os.path.normpath(os.path.expanduser("/home/marco/C:\\Users\\marco\\Desktop\\analysis-step\\CrossData.xlsx")))
 #print(test)
 rm_main(test).to_excel(os.path.normpath(os.path.expanduser("~/Desktop/OWL_Conv_C.xlsx")))

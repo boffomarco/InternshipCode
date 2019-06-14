@@ -2,25 +2,28 @@
 import pandas as pd
 
 # Mandatory function for RapidMiner
-def rm_main(triples, predicates = pd.DataFrame()):    
+def rm_main(triples):    
     # Create the DataFrame to save the vocabs' triples with the predicates present on the argument 'predicates'
     df = pd.DataFrame(columns=["Type", "Property"])
 
+    # Get the list of predicates
+    strPredicates = " "
+
     # Return all the triples if there is no predicate filtering
-    if((len(predicates) == 0)):
+    if(len(strPredicates.split()) == 0):
         df["Type"] = triples["ObjectTerm"]
         df["Property"] = triples["SubjectTerm"]
         return df
 
-    # Iterate for every predicate present on 'predicates'
-    for ind_, r in predicates.iterrows():
+    # Iterate for every predicate
+    for pred in strPredicates.split():
         # Create the list used to add the triples that has that predicate
         list_ = list()
         index_ = 0
         # Iterate for every triples present on the file passed on the argument 'triples'
         for index, row in triples.iterrows():
             # if a triple has a specified PredicateTerm or the predicates are not set
-            if((str(row["PredicateTerm"]) == str(r[predicates.columns[0]]))):
+            if((str(row["PredicateTerm"]) == str(pred)) or (str(row["Predicate"]) == str(pred))):
                 # Save that triple on the list
                 list_.insert(index_,{"Type": row["ObjectTerm"], "Property": row["SubjectTerm"]})
                 index_ += 1

@@ -16,7 +16,7 @@ class ExcelFile:
         self.num = num + 1
 
 # Parse the given file and add its information to the file Excel given as third parameter
-def parse(vocabFolder, date, row, totalExcel, list_, predicates):
+def parse(vocabFolder, date, row, totalExcel, list_):
     # Try to create the graph to analyze the vocabulary
     try:
         g = Graph()
@@ -74,11 +74,12 @@ def parse(vocabFolder, date, row, totalExcel, list_, predicates):
         # Check if the triple has to be saved, if there is a predicate selection then checks if that predicate has to be saved
         bool_ = False
         # If there is no predicate selection then save every triple
-        if(len(predicates) == 0):
+        strPredicates = " "
+        if(len(strPredicates.split()) == 0):
             bool_ = True
         # If there is a predicate selection then check if that predicate has to be saved
         else:
-            for pred in predicates[predicates.columns[0]]:
+            for pred in strPredicates.split():
                 if(pred == str(predicateTerm) or pred == str(predicate)):
                     bool_ = True
                     break
@@ -141,9 +142,10 @@ def newExcel(excelNum, fileName, sheetName):
     return excelFile_, workbook, worksheet
 
 # Mandatory function for RapidMiner
-def rm_main(vocabs, predicates = pd.DataFrame()):
+def rm_main(vocabs):
     # Create the folder used to store the results
-    location = os.path.normpath(os.path.expanduser("~/Desktop/K-Files/"))
+    folderDestination = "~/Desktop/K-Files/"
+    location = os.path.normpath(os.path.expanduser(folderDestination))
     if not os.path.isdir(location):
         os.makedirs(location)
 
@@ -164,7 +166,7 @@ def rm_main(vocabs, predicates = pd.DataFrame()):
             os.makedirs(vocabFolder)
         
         # Add information for each vocabulary
-        totalExcel, list_, i = parse(vocabFolder, date, row, totalExcel, list(), predicates)
+        totalExcel, list_, i = parse(vocabFolder, date, row, totalExcel, list())
         # Save the information on the DataFrame for each vocabulary
         if(i and len(list_)):
             df = df.append(list_)

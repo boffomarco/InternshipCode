@@ -28,15 +28,21 @@ def rm_main(matrix):
             g.add((URIRef(subjList[i].replace(" ", "")), RDFS.comment, URIRef(row["Type"].replace(" ", ""))))
 
     # Create the directory in which store the new vocabulary
-    location = os.path.normpath(os.path.expanduser("~/Desktop/K-Files/FCAConverted/"))
+    reversedFileDestination = "~/Desktop/K-Files/Converted/testConverted.ttl"
+    location = os.path.normpath(os.path.expanduser("/".join(reversedFileDestination.split("/")[0:-1])))
     if not os.path.isdir(location):
         os.makedirs(location)
     # Serialize the new vocabulary
-    g.serialize(destination=str(os.path.join(location, "test.rdf")), format="pretty-xml")
-    #g.serialize(destination=str(os.path.join(location, "test.n3")), format="n3")
-    #g.serialize(destination=str(os.path.join(location, "test.nt")), format="nt")
-    #g.serialize(destination=str(os.path.join(location, "test.ttl")), format="turtle")
-    #g.serialize(destination=str(os.path.join(location, "test.json-ld")), format="json-ld")
+    if("rdf" in reversedFileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, reversedFileDestination.split("/")[-1])), format="pretty-xml")
+    if("n3" in reversedFileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, reversedFileDestination.split("/")[-1])), format="n3")
+    if("nt" in reversedFileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, reversedFileDestination.split("/")[-1])), format="nt")
+    if("ttl" in reversedFileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, reversedFileDestination.split("/")[-1])), format="turtle")
+    if("json" in reversedFileDestination.split(".")[-1]):
+        g.serialize(destination=str(os.path.join(location, reversedFileDestination.split("/")[-1])), format="json-ld")
 
     # Return the triples DataFrame for RapidMiner usage
     return triples
