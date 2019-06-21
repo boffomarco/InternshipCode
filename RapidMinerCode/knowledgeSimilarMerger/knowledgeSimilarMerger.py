@@ -77,7 +77,7 @@ def rm_main(triples, similarities):
                 # Save the triple
                 newTriples = newTriples.append({"Date": row["Date"], "Subject": n[subjTerms], "Predicate": row["Predicate"], "Object": row["Object"], "SubjectTerm": subjTerms, "PredicateTerm": row["PredicateTerm"], "ObjectTerm": row["ObjectTerm"], "Domain": row["Domain"], "Domain Version": row["Domain Version"], "Domain Date": row["Domain Date"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"]}, ignore_index=True)
                 # Add the triple to the graph as URIRef or Literal respectively
-                if(len(row["Object"]) > 5 and "http" == row["Object"][0:3]):
+                if(len(str(row["Object"])) > 5 and "http" == row["Object"][0:3]):
                     g.add((n[subjTerms], URIRef(row["Predicate"]), URIRef(row["Object"])))
                 else:
                     g.add((n[subjTerms], URIRef(row["Predicate"]), Literal(row["Object"])))

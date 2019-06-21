@@ -279,3 +279,6 @@ while page < end:
     end = vocabList(link, url, end, group["id"])
     # Iterate the next page if there were vocabs in this page, otherwise end the program here
     page += 1
+
+
+# otherVocabScraper

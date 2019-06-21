@@ -142,7 +142,7 @@ def rm_main(data, orig):
                         # Save the triple about the name becoming the SubjectTerm in that triple
                         triples = triples.append({"Subject": " "+str(n[name]), "Predicate": r["Predicate"], "Object": r["Object"], "SubjectTerm": name, "PredicateTerm": r["PredicateTerm"], "ObjectTerm": r["ObjectTerm"]}, ignore_index=True)
                         # Add the triple to the graph as URIRef or Literal respectively
-                        if(len(r["Object"]) > 5 and "http" == r["Object"][0:3]):
+                        if(len(str(row["Object"])) > 5 and "http" == row["Object"][0:3]):
                             g.add((n[name], URIRef(r["Predicate"]), URIRef(r["Object"])))
                         else:
                             g.add((n[name], URIRef(r["Predicate"]), Literal(r["Object"])))
@@ -164,7 +164,7 @@ def rm_main(data, orig):
                                     # Save the triple about the element becoming the SubjectTerm in that triple
                                     triples = triples.append({"Subject": " "+str(n[element]), "Predicate": r["Predicate"], "Object": r["Object"], "SubjectTerm": element, "PredicateTerm": r["PredicateTerm"], "ObjectTerm": r["ObjectTerm"]}, ignore_index=True)
                                     # Add the triple to the graph as URIRef or Literal respectively
-                                    if(len(row["Object"]) > 5 and "http" == row["Object"][0:3]):
+                                    if(len(str(row["Object"])) > 5 and "http" == row["Object"][0:3]):
                                         g.add((n[element], URIRef(r["Predicate"]), URIRef(r["Object"])))
                                     else:
                                         g.add((n[element], URIRef(r["Predicate"]), Literal(r["Object"])))
