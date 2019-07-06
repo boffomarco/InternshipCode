@@ -51,7 +51,7 @@ def rm_main(data, orig):
     # Create the graph used to store the vocabulary
     g = Graph()
     # Create the Namespace for the vocabulary
-    strNameSpace = "http://liveschema.org/test"
+    strNameSpace = "http://liveschema.org/test/"
     n = Namespace(strNameSpace)
     g.bind(strNameSpace.split("/")[-1], n)
     
@@ -68,16 +68,26 @@ def rm_main(data, orig):
     for index, row in data.iterrows():
         # Format Names
         names = row["Names"].replace(" ","").replace("[","").replace("]","").replace("'","").replace(",", "_-_")
-        # Save a new triple about Names having as label a new concept
-        triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.label), "Object": str(Literal("concept#"+str(index))), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": "concept#"+str(index)}, ignore_index=True)
-        g.add((n[names], RDFS.label, Literal("concept#"+str(index))))
         # Split Names in the different name of its composition
         nameList = names.split("_-_")
-        # Label the Names
-        for name in nameList:
-            # Save the triple about Names having as labels the various name of which it is composed
-            triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.label), "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": name}, ignore_index=True)
-            g.add((n[names], RDFS.label, Literal(name)))
+        # Create the URITerm used by the row
+        URITerm = ""
+        # If the row has only a name
+        if(len(nameList) == 1):
+            # Use as URITerm the only name
+            URITerm = nameList[0]
+        else:
+            # Use as URITerm the label concept#
+            URITerm = "concept#"+str(index)
+            # Label the Names
+            for name in nameList:
+                # Save the triple about Names having as altLabels the various name of which it is composed
+                triples = triples.append({"Subject": " "+str(n[names]), "Predicate": " "+"http://www.w3.org/2004/02/skos/core#altLabel", "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "altLabel", "ObjectTerm": name}, ignore_index=True)
+                g.add((n[URITerm], URIRef("http://www.w3.org/2004/02/skos/core#altLabel"), Literal(name)))
+
+        # Save a new triple about URITerm having as prefLabel the new URITerm
+        triples = triples.append({"Subject": " "+str(n[URITerm]), "Predicate": " "+"http://www.w3.org/2004/02/skos/core#prefLabel", "Object": str(Literal(URITerm)), "SubjectTerm": URITerm, "PredicateTerm": "prefLabel", "ObjectTerm": URITerm}, ignore_index=True)
+        g.add((n[URITerm], URIRef("http://www.w3.org/2004/02/skos/core#prefLabel"), Literal(URITerm)))
 
         # Create set to contain the different subClasses of Names
         subsAdded = set()
@@ -93,26 +103,36 @@ def rm_main(data, orig):
                 # Check if rNames can be a subClassOf Names
                 bool_, subsAdded, namesRemaining = checkSub(names, rNames, subsAdded, namesRemaining)
                 if(bool_):
-                    # Save the triple about rNames being subClassOf Names
-                    triples = triples.append({"Subject": " "+str(n[rNames]), "Predicate": str(RDFS.subClassOf), "Object": " "+str(n[names]), "SubjectTerm": rNames, "PredicateTerm": "subClassOf", "ObjectTerm": names}, ignore_index=True)
-                    g.add((n[rNames], RDFS.subClassOf, n[names]))
+                    # Create the subURITerm used by the subRow
+                    subURITerm = ""
+                    # If the row has only a name
+                    if(len(rNames.split("_-_")) == 1):
+                        # Use as subURITerm the only name
+                        subURITerm = rNames.split("_-_")[0]
+                    else:
+                        # Use as subURITerm the label concept#
+                        subURITerm = "concept#"+str(i)
+                    # Save the triple about subURITerm being subClassOf URITerm
+                    triples = triples.append({"Subject": " "+str(n[subURITerm]), "Predicate": " "+str(RDFS.subClassOf), "Object": " "+str(n[URITerm]), "SubjectTerm": subURITerm, "PredicateTerm": "subClassOf", "ObjectTerm": URITerm}, ignore_index=True)
+                    g.add((n[subURITerm], RDFS.subClassOf, n[URITerm]))
         # If the its a composition of at least 2 name, then add the remaining name as subClassOf
         if(len(nameList)>1):
             # Iterate over any remaining name
             for sub in namesRemaining:
-                # Save the triple about the single name being subClassOf Names
-                triples = triples.append({"Subject": " "+str(n[sub]), "Predicate": str(RDFS.subClassOf), "Object": " "+str(n[names]), "SubjectTerm": sub, "PredicateTerm": "subClassOf", "ObjectTerm": names}, ignore_index=True)
-                g.add((n[sub], RDFS.subClassOf, n[names]))
+                # Save the triple about the single name being subClassOf URITerm
+                triples = triples.append({"Subject": " "+str(n[sub]), "Predicate": " "+str(RDFS.subClassOf), "Object": " "+str(n[URITerm]), "SubjectTerm": sub, "PredicateTerm": "subClassOf", "ObjectTerm": URITerm}, ignore_index=True)
+                g.add((n[sub], RDFS.subClassOf, n[URITerm]))
 
         # Map every element into its domain
         elements = row["Elements"].replace(" ","").replace("[","").replace("]","").replace("'","").split(",")
+        #print(elements)
         for element in elements:
             # Save the triple about the element being an ObjectProperty
-            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": str(RDF.type), "Object": str(OWL.ObjectProperty), "SubjectTerm": element, "PredicateTerm": "type", "ObjectTerm": "ObjectProperty"}, ignore_index=True)
+            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": " "+str(RDF.type), "Object": " "+str(OWL.ObjectProperty), "SubjectTerm": element, "PredicateTerm": "type", "ObjectTerm": "ObjectProperty"}, ignore_index=True)
             g.add((n[element], RDF.type, OWL.ObjectProperty))
             # Save the triple about the element being a domain of that Names
-            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": str(RDFS.domain), "Object": " "+str(n[names]), "SubjectTerm": element, "PredicateTerm": "domain", "ObjectTerm": names}, ignore_index=True)
-            g.add((n[element], RDFS.domain, n[names]))
+            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": " "+str(RDFS.domain), "Object": " "+str(n[URITerm]), "SubjectTerm": element, "PredicateTerm": "domain", "ObjectTerm": URITerm}, ignore_index=True)
+            g.add((n[element], RDFS.domain, n[URITerm]))
 
         # Complete the file and excel with the original vocabulary
         # Iterate over every item of the original vocabulary
@@ -142,7 +162,7 @@ def rm_main(data, orig):
                         # Save the triple about the name becoming the SubjectTerm in that triple
                         triples = triples.append({"Subject": " "+str(n[name]), "Predicate": r["Predicate"], "Object": r["Object"], "SubjectTerm": name, "PredicateTerm": r["PredicateTerm"], "ObjectTerm": r["ObjectTerm"]}, ignore_index=True)
                         # Add the triple to the graph as URIRef or Literal respectively
-                        if(len(str(row["Object"])) > 5 and "http" == row["Object"][0:3]):
+                        if(len(str(r["Object"])) > 5 and "http" == str(r["Object"])[0:3]):
                             g.add((n[name], URIRef(r["Predicate"]), URIRef(r["Object"])))
                         else:
                             g.add((n[name], URIRef(r["Predicate"]), Literal(r["Object"])))
@@ -164,7 +184,7 @@ def rm_main(data, orig):
                                     # Save the triple about the element becoming the SubjectTerm in that triple
                                     triples = triples.append({"Subject": " "+str(n[element]), "Predicate": r["Predicate"], "Object": r["Object"], "SubjectTerm": element, "PredicateTerm": r["PredicateTerm"], "ObjectTerm": r["ObjectTerm"]}, ignore_index=True)
                                     # Add the triple to the graph as URIRef or Literal respectively
-                                    if(len(str(row["Object"])) > 5 and "http" == row["Object"][0:3]):
+                                    if(((len(str(r["Object"]))) > 5) and ("http" == str(r["Object"])[0:3])):
                                         g.add((n[element], URIRef(r["Predicate"]), URIRef(r["Object"])))
                                     else:
                                         g.add((n[element], URIRef(r["Predicate"]), Literal(r["Object"])))
@@ -199,15 +219,13 @@ from datetime import datetime
 tick = datetime.now()
 
 print("Cross...")
-test = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/CIS_CrossData.xlsx")))
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/~/Desktop/analysis-step/CrossData.xlsx")))
 print("Inh...")
-orig = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Pars_CIS.xlsx")))
-print("Pred...")
-PrTest = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Predicate.xlsx")))
+orig = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Inh_Schema.xlsx")))
 print("RM...")
-res = rm_main(test, orig, PrTest)
+res = rm_main(test, orig)
 print("Conv...")
-res.to_excel(os.path.normpath(os.path.expanduser("~/Desktop/CIS_Conv_C.xlsx")))
+res.to_excel(os.path.normpath(os.path.expanduser("~/Desktop/Schema_Conv_CF.xlsx")))
 
 tock = datetime.now()   
 diff = tock - tick    # the result is a datetime.timedelta object

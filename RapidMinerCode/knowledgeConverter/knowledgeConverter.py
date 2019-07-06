@@ -1,6 +1,6 @@
 #! /usr/bin/python3.6
 # Import libraries
-from rdflib import Graph, Literal, RDFS, RDF, OWL, Namespace
+from rdflib import Graph, Literal, RDFS, RDF, OWL, Namespace, URIRef
 import pandas as pd
 import os
 
@@ -51,7 +51,7 @@ def rm_main(data):
     # Create the graph used to store the vocabulary
     g = Graph()
     # Create the Namespace for the vocabulary
-    strNameSpace = "http://liveschema.org/test"
+    strNameSpace = "http://liveschema.org/test/"
     n = Namespace(strNameSpace)
     g.bind(strNameSpace.split("/")[-1], n)
     
@@ -64,16 +64,26 @@ def rm_main(data):
     for index, row in data.iterrows():
         # Format Names
         names = row["Names"].replace(" ","").replace("[","").replace("]","").replace("'","").replace(",", "_-_")
-        # Save a new triple about Names having as label a new concept
-        triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.label), "Object": str(Literal("concept#"+str(index))), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": "concept#"+str(index)}, ignore_index=True)
-        g.add((n[names], RDFS.label, Literal("concept#"+str(index))))
         # Split Names in the different name of its composition
         nameList = names.split("_-_")
-        # Label the Names
-        for name in nameList:
-            # Save the triple about Names having as labels the various name of which it is composed
-            triples = triples.append({"Subject": " "+str(n[names]), "Predicate": str(RDFS.label), "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "comment", "ObjectTerm": name}, ignore_index=True)
-            g.add((n[names], RDFS.label, Literal(name)))
+        # Create the URITerm used by the row
+        URITerm = ""
+        # If the row has only a name
+        if(len(nameList) == 1):
+            # Use as URITerm the only name
+            URITerm = nameList[0]
+        else:
+            # Use as URITerm the label concept#
+            URITerm = "concept#"+str(index)
+            # Label the Names
+            for name in nameList:
+                # Save the triple about Names having as altLabels the various name of which it is composed
+                triples = triples.append({"Subject": " "+str(n[names]), "Predicate": " "+"http://www.w3.org/2004/02/skos/core#altLabel", "Object": str(Literal(name)), "SubjectTerm": names, "PredicateTerm": "altLabel", "ObjectTerm": name}, ignore_index=True)
+                g.add((n[URITerm], URIRef("http://www.w3.org/2004/02/skos/core#altLabel"), Literal(name)))
+
+        # Save a new triple about URITerm having as prefLabel the new URITerm
+        triples = triples.append({"Subject": " "+str(n[URITerm]), "Predicate": " "+"http://www.w3.org/2004/02/skos/core#prefLabel", "Object": str(Literal(URITerm)), "SubjectTerm": URITerm, "PredicateTerm": "prefLabel", "ObjectTerm": URITerm}, ignore_index=True)
+        g.add((n[URITerm], URIRef("http://www.w3.org/2004/02/skos/core#prefLabel"), Literal(URITerm)))
 
         # Create set to contain the different subClasses of Names
         subsAdded = set()
@@ -89,27 +99,37 @@ def rm_main(data):
                 # Check if rNames can be a subClassOf Names
                 bool_, subsAdded, namesRemaining = checkSub(names, rNames, subsAdded, namesRemaining)
                 if(bool_):
-                    # Save the triple about rNames being subClassOf Names
-                    triples = triples.append({"Subject": " "+str(n[rNames]), "Predicate": str(RDFS.subClassOf), "Object": " "+str(n[names]), "SubjectTerm": rNames, "PredicateTerm": "subClassOf", "ObjectTerm": names}, ignore_index=True)
-                    g.add((n[rNames], RDFS.subClassOf, n[names]))
+                    # Create the subURITerm used by the subRow
+                    subURITerm = ""
+                    # If the row has only a name
+                    if(len(rNames.split("_-_")) == 1):
+                        # Use as subURITerm the only name
+                        subURITerm = rNames.split("_-_")[0]
+                    else:
+                        # Use as subURITerm the label concept#
+                        subURITerm = "concept#"+str(i)
+                        
+                    # Save the triple about subURITerm being subClassOf URITerm
+                    triples = triples.append({"Subject": " "+str(n[subURITerm]), "Predicate": " "+str(RDFS.subClassOf), "Object": " "+str(n[URITerm]), "SubjectTerm": subURITerm, "PredicateTerm": "subClassOf", "ObjectTerm": URITerm}, ignore_index=True)
+                    g.add((n[subURITerm], RDFS.subClassOf, n[URITerm]))
         # If the its a composition of at least 2 name, then add the remaining name as subClassOf
         if(len(nameList)>1):
             # Iterate over any remaining name
             for sub in namesRemaining:
-                # Save the triple about the single name being subClassOf Names
-                triples = triples.append({"Subject": " "+str(n[sub]), "Predicate": str(RDFS.subClassOf), "Object": " "+str(n[names]), "SubjectTerm": sub, "PredicateTerm": "subClassOf", "ObjectTerm": names}, ignore_index=True)
-                g.add((n[sub], RDFS.subClassOf, n[names]))
+                # Save the triple about the single name being subClassOf URITerm
+                triples = triples.append({"Subject": " "+str(n[sub]), "Predicate": " "+str(RDFS.subClassOf), "Object": " "+str(n[URITerm]), "SubjectTerm": sub, "PredicateTerm": "subClassOf", "ObjectTerm": URITerm}, ignore_index=True)
+                g.add((n[sub], RDFS.subClassOf, n[URITerm]))
 
         # Map every element into its domain
         elements = row["Elements"].replace(" ","").replace("[","").replace("]","").replace("'","").split(",")
         #print(elements)
         for element in elements:
             # Save the triple about the element being an ObjectProperty
-            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": str(RDF.type), "Object": str(OWL.ObjectProperty), "SubjectTerm": element, "PredicateTerm": "type", "ObjectTerm": "ObjectProperty"}, ignore_index=True)
+            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": " "+str(RDF.type), "Object": " "+str(OWL.ObjectProperty), "SubjectTerm": element, "PredicateTerm": "type", "ObjectTerm": "ObjectProperty"}, ignore_index=True)
             g.add((n[element], RDF.type, OWL.ObjectProperty))
             # Save the triple about the element being a domain of that Names
-            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": str(RDFS.domain), "Object": " "+str(n[names]), "SubjectTerm": element, "PredicateTerm": "domain", "ObjectTerm": names}, ignore_index=True)
-            g.add((n[element], RDFS.domain, n[names]))
+            triples = triples.append({"Subject": " "+str(n[element]), "Predicate": " "+str(RDFS.domain), "Object": " "+str(n[URITerm]), "SubjectTerm": element, "PredicateTerm": "domain", "ObjectTerm": URITerm}, ignore_index=True)
+            g.add((n[element], RDFS.domain, n[URITerm]))
 
     # Create the directory in which store the new vocabulary
     fileDestination = "~/Desktop/K-Files/Converted/testConverted.ttl"
@@ -131,6 +151,6 @@ def rm_main(data):
     # Return the triples DataFrame for RapidMiner usage
     return triples
 
-test = pd.read_excel(os.path.normpath(os.path.expanduser("/home/marco/C:\\Users\\marco\\Desktop\\analysis-step\\CrossData.xlsx")))
+test = pd.read_excel(os.path.normpath(os.path.expanduser("~/~/Desktop/analysis-step/CrossData.xlsx")))
 #print(test)
-rm_main(test).to_excel(os.path.normpath(os.path.expanduser("~/Desktop/OWL_Conv_C.xlsx")))
+rm_main(test).to_excel(os.path.normpath(os.path.expanduser("~/Desktop/Schema_Conv_C.xlsx")))

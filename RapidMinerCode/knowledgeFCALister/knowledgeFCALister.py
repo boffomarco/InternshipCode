@@ -1,6 +1,8 @@
 #! /usr/bin/python3.6
 # Import libraries
 import pandas as pd
+import csv
+from itertools import zip_longest
 
 # Mandatory function for RapidMiner
 def rm_main(matrix):
@@ -12,8 +14,13 @@ def rm_main(matrix):
 
     # Use a set to avoid creating duplicate Columns
     typeSet = set()
+    # Use a list to create the vennFile
+    typeLists = list()
     # Iterate over every row of the matrix
     for index, row in matrix.iterrows():
+        #Add the term to the list with its tokens
+        typeLists.append((row["TypeTerm"] + " " +  row["PropertiesTokens"].replace("-", "")).split())
+
         # Generate the name of the new column
         colName = "in class (" + row["TypeTerm"] + ")"
         # Check if that column is already present on the DataFrame
@@ -33,6 +40,14 @@ def rm_main(matrix):
                 data.at[i, "total"] = data.at[i, "total"] + row[column]
             i+=1
 
+    # Create the vennFile from the typeList used to generate the Venn diagram
+    vennFile = "/home/marco/Desktop/Schema_Venn.csv"
+    if(len(vennFile) > 2):
+        with open(vennFile,"w+") as f:
+            writer = csv.writer(f)
+            for values in zip_longest(*typeLists):
+                writer.writerow(values)
+
     # Sort the DataFrame on the words
     data = data.sort_values("word")
 
@@ -47,7 +62,7 @@ tick_ = datetime.now()
 tick = datetime.now()
 
 print("Inh...")
-orig = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/DBPedia_FCA.xlsx")))
+orig = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Schema_FCAMatrix.xlsx")))
 
 tock = datetime.now()   
 diff = tock - tick    # the result is a datetime.timedelta object
@@ -63,7 +78,7 @@ print(str(diff.total_seconds()) + " seconds")
 tick = datetime.now()
 
 print("Conv...")
-res.to_excel(os.path.normpath(os.path.expanduser("~/Desktop/DBPedia_List.xlsx")))
+res.to_excel(os.path.normpath(os.path.expanduser("~/Desktop/Schema_ListFCA.xlsx")))
 
 tock = datetime.now()   
 diff = tock - tick    # the result is a datetime.timedelta object

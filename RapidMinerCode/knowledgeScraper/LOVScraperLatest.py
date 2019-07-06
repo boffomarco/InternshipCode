@@ -75,11 +75,10 @@ def vocabPage(link, list_, index):
                     versionDate = versions[version]["start"]
                 # Create the dictionary for a new version
                 versionD = {"prefix": prefix, "URI": uri, "Title": title, "Languages": languages, "VersionName": versionName, "VersionDate": versions[version]["start"], "Link": versions[version]["link"], "Folder": "LOV_Full"}
-                # Add the version to the list
-                list_.append(versionD)
-                print(versionD)
-        # If new versions has to be added
+        # If a new version has to be added
         if(i):
+            # Add the version to the list
+            list_.append(versionD)
             # Update the index for the next element of the list
             index += (i/i)
     
@@ -108,21 +107,6 @@ def rm_main():
             df = df.append(list_, ignore_index=True)
         # Iterate the next page if there were vocabs in this page, otherwise end the program there
         page += 1
-    
-    # Get the other vocabularies from the Excel file from github
-    vocabs = pd.read_excel("https://raw.githubusercontent.com/knowdive/resources/master/otherVocabs.xlsx")
-    # Create the list used to contain the information about the other vocabularies
-    list_ = list()
-    index = 0
-    # Iterate for every vocabulary read from the Excel file
-    for index, row in vocabs.iterrows():
-        # Add the vocabulary to the list
-        list_.insert(index,{"prefix": row["prefix"], "URI": row["URI"], "Title": row["Title"], "Languages": row["Languages"], "VersionName": row["VersionName"], "VersionDate": row["VersionDate"], "Link": row["Link"], "Folder": row["Folder"]})
-        # Update the index for the next element of the list
-        index += 1
-    # Add the list of that Excel file to the DataFrame, if there are vocabularies in that Excel file
-    if(len(list_)):
-        df = df.append(list_, ignore_index=True)
     
     # Return the DataFrame for RapidMiner visualization
     return df
