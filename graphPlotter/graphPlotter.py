@@ -10,8 +10,10 @@ from datetime import datetime
 tick = datetime.now()
 
 print("Inh...")
-matrix = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/OWL_FCA.xlsx")))
+# Open the source FCA file
+matrix = pd.read_excel(os.path.normpath(os.path.expanduser("~/Desktop/Schermo/OWL_FCA.xlsx")))
 
+# Create the dictionary used to define the UpSetPlot
 data_dict = dict()
 
 # Use a set to avoid creating duplicate Columns
@@ -27,6 +29,7 @@ for index, row in matrix.iterrows():
         # Save the triple about that Property being a domain of that row Type/Object
         subjTermList[i].replace(" ", "")
 
+    # Add the information of the dataset to the dictionary
     data_dict[row["TypeTerm"]] = pd.DataFrame({'Property':subjTermList})
 
     print(row["TypeTerm"])
@@ -39,8 +42,9 @@ print(str(diff.total_seconds()) + " seconds")
 print("Plot")
 tick = datetime.now()
 
-#pyu.plot(data_dict, unique_keys = ['Property'], sort_by='degree', inters_size_bounds=(10, 20))
-
+# Create the UpSet Plot using the given dictionary
+pyu.plot(data_dict, unique_keys = ['Property'], sort_by='degree', inters_size_bounds=(10, 20))
+# Plot the UpSet Plot 
 plt.show(pyu)
 #current_figure = plt.gcf()
 #current_figure.savefig("test.png")
@@ -50,6 +54,7 @@ diff = tock - tick    # the result is a datetime.timedelta object
 print(str(diff.total_seconds()) + " seconds") 
 
 """
+PLOT THE VOCABULARY AS A GRAPH
 import rdflib
 from rdflib.extras.external_graph_libs import rdflib_to_networkx_multidigraph
 #from rdflib.extras.external_graph_libs import rdflib_to_networkx_graph
