@@ -62,7 +62,7 @@ def rm_main(data):
     for index, row in data.iterrows():
         # Create a list to save the Names present on that row
         list_ = list()
-        # For evert column that indicates a Name
+        # For every column that indicates a Name
         for column in data:
             # Check if the Name is present on that Element/row
             if(("in class" in column and "_456" in column) and row[column]): 

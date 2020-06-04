@@ -361,8 +361,8 @@ def log(str):
     f.close()
 
 # Set the URL and admin key of LiveSchema
-CKAN_URL = "http://127.0.0.1:5000"
-CKAN_KEY = "0587249a-c6e6-4b75-914a-075d88b16932"
+CKAN_URL = "http://streambase7.disi.unitn.it:5000/"
+CKAN_KEY = "873daee2-3cd4-4621-9079-730f01609ce1"
 
 # Create the CKAN Remote api caller
 CKAN = ckanapi.RemoteCKAN(CKAN_URL,
@@ -379,4 +379,4 @@ datasets = CKAN.call_action('package_list')
 scrapeOthers(CKAN, CKAN_URL, CKAN_KEY, catalogs, datasets)
 
 # Scrape the LOV Repository
-scrapeLOV(CKAN, CKAN_URL, CKAN_KEY, catalogs, datasets)
+#scrapeLOV(CKAN, CKAN_URL, CKAN_KEY, catalogs, datasets)

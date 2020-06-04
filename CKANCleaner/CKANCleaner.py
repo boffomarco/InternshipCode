@@ -26,15 +26,43 @@ CKAN = ckanapi.RemoteCKAN(CKAN_URL,
 
 #Clean the database of LiveSchema
 def cleanCKAN(CKAN):
-    e = CKAN.call_action('package_list')
-    for pack in e:
-        log("Removed dataset "+pack+"\n")
-        CKAN.call_action('dataset_purge', {"id": pack, "force":"True"})
+    ep = CKAN.call_action('package_list')
+    for pack in ep:
+        try:
+            log("Removed dataset "+pack+"\n")
+            print("Removed dataset "+pack)
+            CKAN.call_action('dataset_purge', {"id": pack, "force":"True"})
+        except:
+            log("Exception")
+            print("Exception")
 
-    e = CKAN.call_action('organization_list')
-    for org in e:
-        log("Removed organization "+org+"\n")
-        CKAN.call_action('organization_purge', {"id": org, "force":"True"})
 
-#cleanCKAN(CKAN)
-CKAN.call_action('organization_purge', {"id": "lov", "force":"True"})
+    eo = CKAN.call_action('organization_list')
+    for org in eo:
+        try:
+            log("Removed organization "+org+"\n")
+            print("Removed organization "+org)
+            CKAN.call_action('organization_purge', {"id": org, "force":"True"})
+        except:
+            log("Exception")
+            print("Exception")
+
+    eg = CKAN.call_action('group_list')
+    for group in eg:
+        try:
+            log("Removed group "+group+"\n")
+            print("Removed group "+group)
+            CKAN.call_action('group_purge', {"id": group, "force":"True"})
+        except:
+            log("Exception")
+            print("Exception")
+
+
+cleanCKAN(CKAN)
+
+# Clear Job List of all queues
+#CKAN.call_action('job_clear', {})
+
+#CKAN.call_action('group_purge', {"id": "biswanath-dutta", "force":"True"})
+#CKAN.call_action("group_create", {"name": "biswanath-dutta", "title": "Biswanath Dutta", "extras": [{"key": "URI", "value": "https://sites.google.com/site/dutta2005/home"}]})
+     
