@@ -36,12 +36,11 @@ def ranges(property_):
 def rm_main():
 	# Define Ontology Analyser	
 	o = ontospy.Ontospy()
-	AlloyDefinitions = ""
-	inputFile = "%{inputFile}" #, people.owl, Animal.owl, schema_2020-03-10.n3
+	#inputFile = "%{inputFile}" #, people.owl, Animal.owl, schema_2020-03-10.n3
 	o.load_rdf(inputFile)
 
 	# Create the directory in which store the new vocabulary
-	outputDirectory = "%{outputDirectory}"
+	#outputDirectory = "%{outputDirectory}"
 	if not os.path.isdir(outputDirectory):
 		os.makedirs(outputDirectory)
      
@@ -61,28 +60,35 @@ def rm_main():
 
 	AlloyModel = ""
 
-	for class_ in o.all_classes:
+	for class_ in o.all_classes + ["http://www.w3.org/2002/07/owl#Thing"]:
 		#print("Class: " + str(class_.uri))
-		className = nameOf(class_.uri)
+		if("owl#Thing" in str(class_)):
+			className = "Thing"
+			AlloyClass = "sig Thing in Individual { // Individual can be removed if not defined\n    "
+		else:
+			className = nameOf(class_.uri)
 
-		AlloyClass = "sig " + className
+			AlloyClass = "sig " + className
 
-		for subClassOf in class_.parents():
-			subClassOfName = nameOf(subClassOf.uri)
-			AlloyClass = AlloyClass + " extends " + subClassOfName
+			for subClassOf in class_.parents():
+				subClassOfName = nameOf(subClassOf.uri)
+				if(" in " not in AlloyClass):
+					AlloyClass = AlloyClass + " in " + subClassOfName
+				else:
+					AlloyClass = AlloyClass + " + " + subClassOfName
 
-		AlloyClass = AlloyClass + " { \n\t"
+			AlloyClass = AlloyClass + " { \n\t"
 
 		for property_ in o.all_properties:
 			#print("Property: " + str(property_.uri))
 			domains_ = domains(property_)
 			property_Name = nameOf(property_.uri)
 			for domain_ in domains_:
-				if(domain_ == str(class_.uri)):
-					#print("Domain: " + str(domain_))
+				if(nameOf(domain_) == str(className)):
+					print("Domain: " + str(domain_))
 					ranges_ = ranges(property_)
 					for range_ in ranges_:
-						#print("Range: " + str(range_))
+						print("Range: " + str(range_))
 						AlloyClass = AlloyClass + property_Name + ": " + nameOf(range_) + ",\n\t"
 
 		AlloyClass = AlloyClass[0:-3] + "} \n"
@@ -112,24 +118,25 @@ def rm_main():
 				if predicateName == "subPropertyOf":       
 					subj_range = ""
 					if("Property" == str(subj)[1:9] and subj.ranges):
-						print(len(subj.ranges))
+						#print(len(subj.ranges))
 						subj_range = subj.ranges[0].uri
 					elif("Class" == str(subj)[1:6] and subj.range_of):
-						print(len(subj.range_of))
+						#print(len(subj.range_of))
 						subj_range = subj.range_of[0].uri            
 
 					AlloyModel = AlloyModel + "// subPropertyOf as Figure4\n"
-					AlloyModel = AlloyModel + "pred subPropertyOf{all a:" + nameOf(subj_range) + " | a." + nameOf(subj.uri) + " in a." + nameOf(obj.uri) + "}" + "\n"
+					if(nameOf(subj_range) and nameOf(subj.uri) and nameOf(obj.uri)):
+						AlloyModel = AlloyModel + "pred subPropertyOf{all a:" + nameOf(subj_range) + " | a." + nameOf(subj.uri) + " in a." + nameOf(obj.uri) + "}" + "\n"
 
 					obj_range = ""
 					if("Property" == str(obj)[1:9] and obj.ranges):
-						print(len(obj.ranges))
+						#print(len(obj.ranges))
 						obj_range = obj.ranges[0].uri
 					elif("Class" == str(obj)[1:6] and obj.range_of):
-						print(len(obj.range_of))
+						#print(len(obj.range_of))
 						obj_range = obj.range_of[0].uri
 					
-					if(obj_range):
+					if(nameOf(subj_range) and nameOf(obj_range)):
 						AlloyModel = AlloyModel + "// subPropertyOf as TABLE I\n"
 						AlloyModel = AlloyModel + "pred subPropertyOf{all r:" + nameOf(subj_range) + " | r in " + nameOf(obj_range) + "}" + "\n"
 					
@@ -207,6 +214,15 @@ def rm_main():
 		Alloy.write("\n")
 		Alloy.write(AlloyModel)
 
+	AlloyUtils = ""
+	#AlloyUtilsFile = "%{AlloyUtilsFile}"
+	with open(AlloyUtilsFile, "r") as AlloyUtilsFileRead:
+		AlloyUtils = AlloyUtilsFileRead.read()
+
+	with open(fileName, "a+") as Alloy:
+		Alloy.write("\n")
+		Alloy.write(AlloyUtils)
+
 	with open(fileName+"_notAlloy.csv", "w+") as notAlloy:
 		notAlloy.write("List of all the triples not used for Alloy conversion\n")
 		notAlloy.write(notAlloyModel)
@@ -215,3 +231,11 @@ def rm_main():
 		notAlloyPredicates.write("List of predicates in valid triples(i.e. those without BlankNodes) not used for Alloy conversion\n")
 		for pred in notAlloyPred:
 			notAlloyPredicates.write(pred + "\n")
+
+	
+AlloyUtilsFile = "/home/marco/Desktop/Alloy/AlloyUtils.als"
+fileName = "people" #, people.owl, Animal.owl, schema_2020-03-10.n3
+inputFile = "/home/marco/Desktop/Alloy/" + fileName + ".owl"
+outputDirectory = "/home/marco/Desktop/Alloy/Res/"
+
+rm_main()
