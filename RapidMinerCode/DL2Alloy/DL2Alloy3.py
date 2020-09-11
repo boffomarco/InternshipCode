@@ -1,6 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# [TODO] Fix the encoding issues
 
 # Based on:
 # https://www.researchgate.net/publication/272763162_A_Non-Standard_Approach_for_the_OWL_Ontologies_Checking_and_Reasoning
@@ -71,15 +72,43 @@ def nextBrackets(next, complete):
 
 def DLAxiomtoAlloy(axiom, level):
 
-	print(axiom)
+	
 
 	# TBOX
-	if("≡" in axiom):
-		tmp = axiom.split("≡")
+	if("\xe2\x89\xa1" in str(axiom)):
+		tmp = axiom.split("\xe2\x89\xa1")
+		#tmp = axiom.split("≡")
+
+		print(axiom)
+		print(tmp)
+
+		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1 ) + " = " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " }"
+	
+	elif("=" in axiom):
+		tmp = axiom.split("=")
+
+		if(len(re.findall('\d+',  tmp[1]))):
+			tmp = tmp[1]
+
+			n = re.findall('\d+',  tmp)[0]
+
+			tmp = tmp.replace(str(n),"")
+			
+			if("." in tmp):
+				tmp = tmp.split(".")
+
+				#print(n)
+				#print(tmp)
+
+				return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp[0].replace("(","").replace(")","") , level + 1) + " :> " + DLAxiomtoAlloy(tmp[1].replace("(","").replace(")","") , level + 1) + " ) ) => " + n + "}" 
+			
+			else:
+				return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp.replace("(","").replace(")","") , level + 1) + " ) ) = " + n + "}" 
+
 
 		#print(tmp)
 
-		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1 ) + " = " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " }"
+		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1) + " = " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " }"
 
 	elif("⊑" in axiom):
 		tmp = axiom.split("⊑")
@@ -87,7 +116,6 @@ def DLAxiomtoAlloy(axiom, level):
 		#print(tmp)
 
 		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1 ) + " in  ( " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " )  }"
-	
 
 	# (ALC) concept
 	elif("⊔" in axiom):
@@ -146,7 +174,7 @@ def DLAxiomtoAlloy(axiom, level):
 		for tmp in axiom.split():
 			if("⁻" in tmp):
 
-				return "( ~ " + DLAxiomtoAlloy(tmp.replace("⁻", "") , level + 1) + " ) "
+				return "( ( TOP -> TOP ) - " + DLAxiomtoAlloy(tmp.replace("⁻", "") , level + 1) + " ) "
 
 	# (SHIQ) concept
 
@@ -211,7 +239,7 @@ def DLAxiomtoAlloy(axiom, level):
 			#print(n)
 			#print(tmp)
 
-			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp[0].replace("(","").replace(")","") , level + 1) + " :> " + DLAxiomtoAlloy(tmp[1].replace("(","").replace(")","") , level + 1) + " ) ) = " + n + "}" 
+			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp[0].replace("(","").replace(")","") , level + 1) + " :> " + DLAxiomtoAlloy(tmp[1].replace("(","").replace(")","") , level + 1) + " ) ) => " + n + "}" 
 		
 		else:
 			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp.replace("(","").replace(")","") , level + 1) + " ) ) = " + n + "}" 
@@ -315,7 +343,7 @@ def rm_main(dataDL):
 		if (row["DLAxioms"]):
 			axiom = row["DLAxioms"].encode('utf-8').strip()
 
-			AlloyAxiom = DLAxiomtoAlloy(axiom.replace("⊤", "TOP").replace(",", ""), 0)
+			AlloyAxiom = DLAxiomtoAlloy(str(axiom).replace("⊤", "TOP").replace(",", ""), 0)
 
 			if (AlloyAxiom[0] == "{"):
 				AlloyAxiom = "fact  " + AlloyAxiom
@@ -455,11 +483,9 @@ inputFile = "/home/marco/Desktop/Alloy/" + fileName + ".owl"
 outputDirectory = "/home/marco/Desktop/Alloy/results/"
 
 
-#test = pd.read_excel("/home/marco/Desktop/Alloy/peopleDL_.xlsx")
-test = pd.read_excel("/home/marco/Desktop/Alloy/gufoDL.xlsx")
+test = pd.read_excel("/home/marco/Desktop/Alloy/peopleDL.xlsx")
+#test = pd.read_excel("/home/marco/Desktop/Alloy/gufoDL.xlsx")
 
-#rm_main(test)
+rm_main(test)
 
 #print(DLAxiomtoAlloy("∃ partitions.⊤ ⊑ (Type ⊓ (¬AbstractIndividualType) ⊓ (¬ConcreteIndividualType))",0))
-print(DLAxiomtoAlloy("Interrogation ⊑ = 1 ContributesTo.CrimeInvestigation",0))
-print(DLAxiomtoAlloy("Interrogation ⊑ ≤ 1 ContributesTo.CrimeInvestigation",0))
