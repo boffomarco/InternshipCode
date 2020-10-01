@@ -71,7 +71,7 @@ def nextBrackets(next, complete):
 
 def DLAxiomtoAlloy(axiom, level):
 
-	print(axiom)
+	#print(axiom)
 
 	# TBOX
 	if("≡" in axiom):
@@ -88,6 +88,12 @@ def DLAxiomtoAlloy(axiom, level):
 
 		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1 ) + " in  ( " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " )  }"
 	
+	if("=" in axiom and level == 0):
+		tmp = axiom.split("=")
+
+		#print(tmp)
+
+		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1 ) + " = " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " }"
 
 	# (ALC) concept
 	elif("⊔" in axiom):
@@ -328,102 +334,136 @@ def rm_main(dataDL):
 	AlloyPredicates = "\n// Predicates\n"
 
 	for subject, predicate, object_ in o.rdflib_graph:
-		predicateName = nameOf(predicate.encode('utf-8').strip())
-		if(predicateName != "type"):
-			#print(subject, predicate, object_)
-			#print()
+		#print(subject, predicate, object_)
+		#print()
 		
-			subj = o.get_any_entity(uri=subject.encode('utf-8').strip())
-			pred = o.get_any_entity(uri=predicate.encode('utf-8').strip())
-			obj = o.get_any_entity(uri=object_.encode('utf-8').strip())
+		predicateName = nameOf(predicate.encode('utf-8').strip())
+		
+		subj = o.get_any_entity(uri=subject.encode('utf-8').strip())
+		pred = o.get_any_entity(uri=predicate.encode('utf-8').strip())
+		obj = o.get_any_entity(uri=object_.encode('utf-8').strip())
 
-			if(subj and obj):
-				if predicateName == "subPropertyOf":       
-					subj_range = ""
-					if("Property" == str(subj)[1:9] and subj.ranges):
-						#print(len(subj.ranges))
-						subj_range = subj.ranges[0].uri
-					elif("Class" == str(subj)[1:6] and subj.range_of):
-						#print(len(subj.range_of))
-						subj_range = subj.range_of[0].uri            
+		# PREDICATE MAPPING FROM OWL TO ALLOY
+		if(subj and obj and predicateName != "type"):
+			
+			if predicateName == "subPropertyOf":       
+				subj_range = ""
+				if("Property" == str(subj)[1:9] and subj.ranges):
+					#print(len(subj.ranges))
+					subj_range = subj.ranges[0].uri
+				elif("Class" == str(subj)[1:6] and subj.range_of):
+					#print(len(subj.range_of))
+					subj_range = subj.range_of[0].uri            
 
-					AlloyModel = AlloyModel + "// subPropertyOf as Figure4\n"
-					if(nameOf(subj_range) and nameOf(subj.uri) and nameOf(obj.uri)):
-						AlloyModel = AlloyModel + "pred subPropertyOf{all a:" + nameOf(subj_range) + " | a." + nameOf(subj.uri) + " in a." + nameOf(obj.uri) + "}" + "\n"
+				AlloyModel = AlloyModel + "// subPropertyOf as Figure4\n"
+				if(nameOf(subj_range) and nameOf(subj.uri) and nameOf(obj.uri)):
+					AlloyModel = AlloyModel + "pred subPropertyOf{all a:" + nameOf(subj_range) + " | a." + nameOf(subj.uri) + " in a." + nameOf(obj.uri) + "}" + "\n"
 
-					obj_range = ""
-					if("Property" == str(obj)[1:9] and obj.ranges):
-						#print(len(obj.ranges))
-						obj_range = obj.ranges[0].uri
-					elif("Class" == str(obj)[1:6] and obj.range_of):
-						#print(len(obj.range_of))
-						obj_range = obj.range_of[0].uri
-					
-					if(nameOf(subj_range) and nameOf(obj_range)):
-						AlloyModel = AlloyModel + "// subPropertyOf as TABLE I\n"
-						AlloyModel = AlloyModel + "pred subPropertyOf{all r:" + nameOf(subj_range) + " | r in " + nameOf(obj_range) + "}" + "\n"
-					
-				elif predicateName == "inverseOf":
-					AlloyModel = AlloyModel + "pred inverseOf{" + nameOf(subj.uri) + " = ~" + nameOf(obj.uri) + "}" + "\n"
+				obj_range = ""
+				if("Property" == str(obj)[1:9] and obj.ranges):
+					#print(len(obj.ranges))
+					obj_range = obj.ranges[0].uri
+				elif("Class" == str(obj)[1:6] and obj.range_of):
+					#print(len(obj.range_of))
+					obj_range = obj.range_of[0].uri
 				
-				elif predicateName ==  "disjointWith":
-					if(subj.parents() and obj.parents() and subj.parents()[0] != obj.parents()[0]):
-						AlloyModel = AlloyModel + "pred { no c1:" + nameOf(subj.uri) + ", c2:" + nameOf(obj.uri) + "| c1 = c2}" + "\n"
-						
-				elif predicateName ==  "complementOf":
-					C = "{"
-					for class_ in o.all_classes:
-						if(nameOf(obj.uri) != nameOf(class_.uri)):
-							C = C + nameOf(class_.uri)
-					C = C + "}"
-
-					AlloyModel = AlloyModel + "pred { " + nameOf(subj.uri) + " = " + str(C) + "}" + "\n"
-
-				elif predicateName ==  "equivalentClass":
-					AlloyModel = AlloyModel + "pred equivalentClass{ " + nameOf(subj.uri) + " = " + nameOf(obj.uri) + "}" + "\n"
-
-				elif predicateName ==  "equivalentProperty":
-					AlloyModel = AlloyModel + "pred equivalentProperty{ " + nameOf(subj.uri) + " = " + nameOf(obj.uri) + "}" + "\n"
-
-				elif predicateName ==  "TransitiveProperty":
-					AlloyModel = AlloyModel + "pred TransitiveProperty{ a,b,c ∈ " + nameOf(subj.uri) + " / a.(" + nameOf(predicate) + ") = b && b.(" + nameOf(predicate) + ") = c ⇒ a.(" + nameOf(predicate) + ") = c }" + "\n"
-
-				elif predicateName ==  "hasValue":
-					if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-						AlloyModel = AlloyModel + "pred hasValue{ #( " + pred.ranges[0] + " ) = 1}" + "\n"
-
-				elif predicateName ==  "cardinality":
-					if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-						AlloyModel = AlloyModel + "pred cardinality{ #( " + pred.ranges[0] + " ) = " + nameOf(obj.uri) + "}" + "\n"
-
-				elif predicateName ==  "maxCardinality":
-					if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-						AlloyModel = AlloyModel + "pred maxCardinality{ #( " + pred.ranges[0] + " ) <= " + nameOf(obj.uri) + "}" + "\n"
-
-				elif predicateName ==  "minCardinality":
-					if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-						AlloyModel = AlloyModel + "pred minCardinality{ #( " + pred.ranges[0] + " ) >= " + nameOf(obj.uri) + "}" + "\n"
-
-				elif predicateName ==  "SymmetricProperty":
-					if((("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)) and (("Property" == str(pred)[1:9] and pred.domains) or ("Class" == str(pred)[1:6] and pred.domain_of))):
-						AlloyModel = AlloyModel + "pred SymmetricProperty{ a ∈ " + pred.domains[0] + " &&  b ∈ " + pred.ranges[0] + " / a.(" + nameOf(predicate) + ")  = b ⇒ b.(" + nameOf(predicate) + ") }" + "\n"
-
-				elif predicateName ==  "FunctionalProperty":
-					if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-						AlloyModel = AlloyModel + "pred FunctionalProperty{ #(" + pred.ranges[0] + ") = 1}" + "\n"
-
-				elif predicateName ==  "InverseFunctionalProperty":
-					if(("Property" == str(pred)[1:9] and pred.domains) or ("Class" == str(pred)[1:6] and pred.domain_of)):
-						AlloyModel = AlloyModel + "pred InverseFunctionalProperty{ #(" + pred.domains[0] + ") = 1}" + "\n"
-
-				elif predicateName ==  "allValuesFrom":
-					if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-						AlloyModel = AlloyModel + "pred allValuesFrom{ " + nameOf(pred.ranges[0]) + " in " + nameOf(obj.uri) + "}" + "\n"
-
-				elif predicateName ==  "someValuesFrom":
-					if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-						AlloyModel = AlloyModel + "pred allValuesFrom{ some r: " + nameOf(pred.ranges[0]) + " | r in " + nameOf(obj.uri) + "}" + "\n"
+				if(nameOf(subj_range) and nameOf(obj_range)):
+					AlloyModel = AlloyModel + "// subPropertyOf as TABLE I\n"
+					AlloyModel = AlloyModel + "pred subPropertyOf{all r:" + nameOf(subj_range) + " | r in " + nameOf(obj_range) + "}" + "\n"
 				
+			elif predicateName == "inverseOf":
+				AlloyModel = AlloyModel + "pred inverseOf{" + nameOf(subj.uri) + " = ~" + nameOf(obj.uri) + "}" + "\n"
+			
+			elif predicateName ==  "disjointWith":
+				if(subj.parents() and obj.parents() and subj.parents()[0] != obj.parents()[0]):
+					AlloyModel = AlloyModel + "pred { no c1:" + nameOf(subj.uri) + ", c2:" + nameOf(obj.uri) + "| c1 = c2} // disjointWith \n"
+					
+			elif predicateName ==  "complementOf":
+				C = "{"
+				for class_ in o.all_classes:
+					if(nameOf(obj.uri) != nameOf(class_.uri)):
+						C = C + nameOf(class_.uri)
+				C = C + "}"
+
+				AlloyModel = AlloyModel + "pred { " + nameOf(subj.uri) + " = " + str(C) + "} // complementOf \n"
+
+			elif predicateName ==  "equivalentClass":
+				AlloyModel = AlloyModel + "pred equivalentClass{ " + nameOf(subj.uri) + " = " + nameOf(obj.uri) + "}" + "\n"
+
+			elif predicateName ==  "equivalentProperty":
+				AlloyModel = AlloyModel + "pred equivalentProperty{ " + nameOf(subj.uri) + " = " + nameOf(obj.uri) + "}" + "\n"
+
+			elif predicateName ==  "TransitiveProperty":
+				AlloyModel = AlloyModel + "pred TransitiveProperty{ a,b,c ∈ " + nameOf(subj.uri) + " / a.(" + nameOf(predicate) + ") = b && b.(" + nameOf(predicate) + ") = c ⇒ a.(" + nameOf(predicate) + ") = c }" + "\n"
+
+			elif predicateName ==  "hasValue":
+				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
+					AlloyModel = AlloyModel + "pred hasValue{ #( " + pred.ranges[0] + " ) = 1}" + "\n"
+
+			elif predicateName ==  "cardinality":
+				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
+					AlloyModel = AlloyModel + "pred cardinality{ #( " + pred.ranges[0] + " ) = " + nameOf(obj.uri) + "}" + "\n"
+
+			elif predicateName ==  "maxCardinality":
+				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
+					AlloyModel = AlloyModel + "pred maxCardinality{ #( " + pred.ranges[0] + " ) <= " + nameOf(obj.uri) + "}" + "\n"
+
+			elif predicateName ==  "minCardinality":
+				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
+					AlloyModel = AlloyModel + "pred minCardinality{ #( " + pred.ranges[0] + " ) >= " + nameOf(obj.uri) + "}" + "\n"
+
+			elif predicateName ==  "SymmetricProperty":
+				if((("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)) and (("Property" == str(pred)[1:9] and pred.domains) or ("Class" == str(pred)[1:6] and pred.domain_of))):
+					AlloyModel = AlloyModel + "pred SymmetricProperty{ a ∈ " + pred.domains[0] + " &&  b ∈ " + pred.ranges[0] + " / a.(" + nameOf(predicate) + ")  = b ⇒ b.(" + nameOf(predicate) + ") }" + "\n"
+
+			elif predicateName ==  "FunctionalProperty":
+				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
+					AlloyModel = AlloyModel + "pred FunctionalProperty{ #(" + pred.ranges[0] + ") = 1}" + "\n"
+
+			elif predicateName ==  "InverseFunctionalProperty":
+				if(("Property" == str(pred)[1:9] and pred.domains) or ("Class" == str(pred)[1:6] and pred.domain_of)):
+					AlloyModel = AlloyModel + "pred InverseFunctionalProperty{ #(" + pred.domains[0] + ") = 1}" + "\n"
+
+			elif predicateName ==  "allValuesFrom":
+				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
+					AlloyModel = AlloyModel + "pred allValuesFrom{ " + nameOf(pred.ranges[0]) + " in " + nameOf(obj.uri) + "}" + "\n"
+
+			elif predicateName ==  "someValuesFrom":
+				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
+					AlloyModel = AlloyModel + "pred allValuesFrom{ some r: " + nameOf(pred.ranges[0]) + " | r in " + nameOf(obj.uri) + "}" + "\n"
+
+		# META-PROPERTY OF OWL TO ALLOY
+		elif(predicateName == "type"):
+			
+			if(nameOf(object_) == "FunctionalObjectProperty"):
+				if("Property" == str(subj)[1:9] and subj.ranges):
+					#print(len(subj.ranges))
+					subj_range = subj.ranges[0].uri
+				AlloyModel = AlloyModel + "fact { all c: " + subj_range + "| lone " + nameOf(subject)+ ".c } // FunctionalObjectProperty \n"
+
+			elif(nameOf(object_) == "InverseFunctionalProperty"):
+				if("Property" == str(subj)[1:9] and subj.domains):
+					#print(len(subj.domains))
+					subj_domain = subj.domains[0].uri
+				AlloyModel = AlloyModel + "fact { all c: " + subj_domain + "| lone c." + nameOf(subject)+ " } // InverseFunctionalProperty \n"
+
+			elif(nameOf(object_) == "TransitiveProperty"):
+				AlloyModel = AlloyModel + "fact { " + nameOf(subj.uri) + "." + nameOf(subj.uri) + " in " + nameOf(subj.uri) + " } // TransitiveProperty \n"
+
+			elif(nameOf(object_) == "SymmetricProperty"):
+				AlloyModel = AlloyModel + "fact { ~" + nameOf(subj.uri) + " in " + nameOf(subj.uri) + " } // SymmetricProperty \n"
+
+			elif(nameOf(object_) == "AsymmetricProperty"):
+				AlloyModel = AlloyModel + "fact {~" + nameOf(subj.uri) + "  & " + nameOf(subj.uri) + " in iden} // AsymmetricProperty \n"
+
+			elif(nameOf(object_) == "ReflexiveProperty"):
+				if("Property" == str(subj)[1:9] and subj.domains):
+					#print(len(subj.domains))
+					subj_domain = subj.domains[0].uri
+				AlloyModel = AlloyModel + "fact {" + subj_domain + "<:iden in " + nameOf(subj.uri) + "} // ReflexiveProperty \n"
+
+			elif(nameOf(object_) == "IrreflexiveProperty"):
+				AlloyModel = AlloyModel + "fact {no iden & " + nameOf(subj.uri) + "} // IrreflexiveProperty \n"
 
 
 	with open(fileName, "w+") as Alloy:
@@ -454,12 +494,28 @@ fileName = "gufo" #, people.owl, Animal.owl, schema_2020-03-10.n3
 inputFile = "/home/marco/Desktop/Alloy/" + fileName + ".owl"
 outputDirectory = "/home/marco/Desktop/Alloy/results/"
 
+inputFile = "/home/marco/Desktop/Alloy/InputCheck/no.owl"
+outputDirectory = "/home/marco/Desktop/Alloy/InputCheck/results/"
+
 
 #test = pd.read_excel("/home/marco/Desktop/Alloy/peopleDL_.xlsx")
-test = pd.read_excel("/home/marco/Desktop/Alloy/gufoDL.xlsx")
+#test = pd.read_excel("/home/marco/Desktop/Alloy/gufoDL.xlsx")
+test = pd.read_excel("/home/marco/Desktop/Alloy/InputCheck/noDL.xls")
 
-#rm_main(test)
+rm_main(test)
 
 #print(DLAxiomtoAlloy("∃ partitions.⊤ ⊑ (Type ⊓ (¬AbstractIndividualType) ⊓ (¬ConcreteIndividualType))",0))
-print(DLAxiomtoAlloy("Interrogation ⊑ = 1 ContributesTo.CrimeInvestigation",0))
-print(DLAxiomtoAlloy("Interrogation ⊑ ≤ 1 ContributesTo.CrimeInvestigation",0))
+#print(DLAxiomtoAlloy("Interrogation ⊑ = 1 ContributesTo.CrimeInvestigation",0))
+#print(DLAxiomtoAlloy("Interrogation ⊑ ≤ 1 ContributesTo.CrimeInvestigation",0))
+
+#print(DLAxiomtoAlloy("Aspect = ExtrinsicAspect ⊔ IntrinsicAspect",0))
+#print(DLAxiomtoAlloy("Aspect = ExtrinsicAspect ⊔ IntrinsicAspect  ⊔ safsasadda",0))
+#print(DLAxiomtoAlloy("ExtrinsicAspect ⊑ ¬ IntrinsicAspect",0))
+#print(DLAxiomtoAlloy("ExtrinsicAspect ⊑ ¬ IntrinsicAspect  ⊔ safsasadda",0))
+
+#print(DLAxiomtoAlloy("⊤ ⊑ ¬∃ externallyDependsOn .self",0))
+
+
+
+
+
