@@ -10,6 +10,7 @@ import os
 import pandas as pd
 import ontospy
 import re
+from rdflib import RDF, RDFS, OWL 
 
 
 def nameOf(text):
@@ -21,9 +22,6 @@ def domains(property_):
     if(property_.domains):
         for domain_ in property_.domains:
             property_domains = property_domains + str(domain_.uri) + " "
-    elif(property_.parents()):
-        for property_parent in property_.parents():
-            property_domains = property_domains + " " + " ".join(domains(property_parent))
     return property_domains.split()
 
 
@@ -32,9 +30,6 @@ def ranges(property_):
     if(property_.ranges):
         for range_ in property_.ranges:
             property_ranges = property_ranges + str(range_.uri) + " "
-    elif(property_.parents()):
-        for property_parent in property_.parents():
-            property_ranges = property_ranges + " " + " ".join(ranges(property_parent))
     return property_ranges.split()
 
 
@@ -68,32 +63,36 @@ def nextBrackets(next, complete):
 		return brackets(next)
 
 
+#[TODO] Check how to comment redundant Axiom (how to detect and comment) 
 
 def DLAxiomtoAlloy(axiom, level):
 
 	#print(axiom)
-
+	"""
+	if(len(axiom.split(" ")) == 1):
+		print(axiom)
+	"""
 	# TBOX
-	if("≡" in axiom):
+	if("≡" in axiom and level == 0):
 		tmp = axiom.split("≡")
 
 		#print(tmp)
 
-		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1 ) + " = " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " }"
+		return  "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1) + " = " + DLAxiomtoAlloy( tmp[1] , level + 1) + " }"
 
-	elif("⊑" in axiom):
+	elif("⊑" in axiom and level == 0):
 		tmp = axiom.split("⊑")
 
 		#print(tmp)
 
-		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1 ) + " in  ( " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " )  }"
+		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1) + " in  ( " + DLAxiomtoAlloy( tmp[1] , level + 1) + " )  }"
 	
 	if("=" in axiom and level == 0):
 		tmp = axiom.split("=")
 
 		#print(tmp)
 
-		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1 ) + " = " + DLAxiomtoAlloy( tmp[1] , level + 1 ) + " }"
+		return "fact { " + DLAxiomtoAlloy( tmp[0] , level + 1) + " = " + DLAxiomtoAlloy( tmp[1] , level + 1) + " }"
 
 	# (ALC) concept
 	elif("⊔" in axiom):
@@ -173,10 +172,10 @@ def DLAxiomtoAlloy(axiom, level):
 			#print(n)
 			#print(tmp)
 
-			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp[0].replace("(","").replace(")","") , level + 1) + " :> " + DLAxiomtoAlloy(tmp[1].replace("(","").replace(")","") , level + 1) + " ) ) =< " + n + "}" 
+			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp[0].replace("(","").replace(")","") , level + 1) + " :> " + DLAxiomtoAlloy(tmp[1].replace("(","").replace(")","") , level + 1) + " ) ) <= " + n + "}" 
 		
 		else:
-			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp.replace("(","").replace(")","") , level + 1) + " ) ) =< " + n + "}" 
+			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp.replace("(","").replace(")","") , level + 1) + " ) ) <= " + n + "}" 
 
 	elif("≥" in axiom):
 		tmp = axiom.split("≥")
@@ -195,10 +194,10 @@ def DLAxiomtoAlloy(axiom, level):
 			#print(n)
 			#print(tmp)
 
-			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp[0].replace("(","").replace(")","") , level + 1) + " :> " + DLAxiomtoAlloy(tmp[1].replace("(","").replace(")","") , level + 1) + " ) ) => " + n + "}" 
+			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp[0].replace("(","").replace(")","") , level + 1) + " :> " + DLAxiomtoAlloy(tmp[1].replace("(","").replace(")","") , level + 1) + " ) ) >= " + n + "}" 
 		
 		else:
-			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp.replace("(","").replace(")","") , level + 1) + " ) ) => " + n + "}" 
+			return "{ a : univ | #( a.( " + DLAxiomtoAlloy(tmp.replace("(","").replace(")","") , level + 1) + " ) ) >= " + n + "}" 
 
 	elif("=" in axiom and level > 0):
 		tmp = axiom.split("=")
@@ -235,11 +234,13 @@ def DLAxiomtoAlloy(axiom, level):
 		C = tmp[0].split()[-1]
 		tmp = tmp[1].split(")")[0]
 		tmp = tmp.split(",")
+
 		if(len(tmp)==1):
 			return "fact { " + DLAxiomtoAlloy(tmp[0] , level + 1) + " in " + C + " }"
 		elif(len(tmp)==2):
 			return "fact { " + DLAxiomtoAlloy(tmp[0] , level + 1) + " -> " + DLAxiomtoAlloy(tmp[1] , level + 1) + " in " + C + " }"
-		return axiom#"fact { " + DLAxiomtoAlloy(tmp[0] , level + 1) + " -> " + DLAxiomtoAlloy(tmp[1] , level + 1) + " in " + C + " }"
+		
+		return axiom
 
 
 	return axiom.replace("(","").replace(")","")
@@ -265,8 +266,9 @@ def rm_main(dataDL):
 	AlloyModel = "module " + moduleName + "\n\n"
 
 	usedProperties = set()
+	usedDataTypes = set()
 
-	AlloySignatures = "\n// Signatures\n"
+	AlloySignatures = "// Specific Signatures\n"
 
 	# Add Classes & Properties to Alloy
 	for class_ in o.all_classes:
@@ -275,63 +277,115 @@ def rm_main(dataDL):
 
 		AlloyClass = "sig " + className + " in TOP "
 
-		"""
-		for subClassOf in class_.parents():
-			subClassOfName = nameOf(subClassOf.uri)
-			AlloyClass = AlloyClass + " extends " + subClassOfName
-		"""
 		AlloyClass = AlloyClass + " { \n\t"
 
 		for property_ in o.all_properties:
 			#print("Property: " + str(property_.uri))
 			domains_ = domains(property_)
-			property_Name = nameOf(property_.uri)
-			for domain_ in domains_:
-				if(domain_ == str(class_.uri)):
-					#print("Domain: " + str(domain_))
-					ranges_ = ranges(property_)
-					for range_ in ranges_:
-						#print("Range: " + str(range_))
-						AlloyClass = AlloyClass + property_Name + ": " + nameOf(range_) + ",\n\t"
-						usedProperties.add(property_Name)
-
+			if(len(domains_) == 1):
+				property_Name = nameOf(property_.uri)
+				for domain_ in domains_:
+					if(domain_ == str(class_.uri)):
+						#print("Domain: " + str(domain_))
+						ranges_ = ranges(property_)
+						if(len(ranges_) == 1):
+							#print("Range: " + str(range_))
+							rangeName = nameOf(ranges_[0])
+							AlloyClass = AlloyClass + property_Name + ": set " + rangeName + ",\n\t"
+							usedProperties.add(property_)
+							usedDataTypes.add(rangeName)
+						else:
+							AlloyClass = AlloyClass + property_Name + ": set TOP,\n\t"
+							usedProperties.add(property_)
+							
+					#print()
+			#print()
 		AlloyClass = AlloyClass[0:-3] + "} \n"
 		
 		AlloySignatures = AlloySignatures + AlloyClass
 		#print()
 
 
+ 	# Define TOP with remaining properties
+	AlloyModel = AlloyModel + "// General Signatures\n"
 	AlloyModel = AlloyModel + "abstract sig TOP { \n"
 
 	for property_ in o.all_properties:
 		property_Name = nameOf(property_.uri)
-		if(property_Name not in usedProperties):
-			#print(property_Name)
-			AlloyModel = AlloyModel + property_Name + " : set TOP,\n"
+		if(property_ not in usedProperties):
+			# Don't take into account AnnotationProperties of OWL
+			if (property_.uri, RDF.type, OWL.AnnotationProperty) not in o.rdflib_graph:
+
+				ranges_ = ranges(property_)
+				if(len(ranges_) == 1):
+					rangeName = nameOf(ranges_[0])
+					if(rangeName == "Thing"):
+						rangeName = "TOP"
+					AlloyModel = AlloyModel + "\t" + property_Name + ": set " + rangeName + ",\n"
+					usedDataTypes.add(rangeName)
+				else:
+					AlloyModel = AlloyModel + "\t" + property_Name + ": set TOP,\n"
 
 	AlloyModel = AlloyModel[0:-2] + "}\n"
+
 	AlloyModel = AlloyModel + "sig BOTTOM in TOP {} fact { #BOTTOM = 0 } \n\n"
 
+	unUsedProperties = set(o.all_properties) - usedProperties
+	unUsedPropertiesLabels = set()
+	for uUP in unUsedProperties:
+		unUsedPropertiesLabels.add(nameOf(uUP.uri))
+
+	"""
+	# To add if we want to keep also class relations
+	validLabels = unUsedPropertiesLabels
+	for validClass in o.all_classes:
+		validLabels.add(nameOf(validClass.uri))
+	"""
 
 	AlloyAxioms = "\n// Axioms\n"
+	AlloyAxiomsComment = "\n// Non Relevant Axioms\n"
 
 	# Iterate for every DL Axioms
 	for index, row in dataDL.iterrows():
 
 		if (row["DLAxioms"]):
-			axiom = row["DLAxioms"].encode('utf-8').strip()
 
-			AlloyAxiom = DLAxiomtoAlloy(axiom.replace("⊤", "TOP").replace(",", ""), 0)
+			axioms = row["DLAxioms"].encode('utf-8').strip()
 
-			if (AlloyAxiom[0] == "{"):
-				AlloyAxiom = "fact  " + AlloyAxiom
-			#print(AlloyAxiom)
-			
-			if("fact {" in AlloyAxiom[0:6]):
-				AlloyAxioms = AlloyAxioms + AlloyAxiom + "\n"
-			#print("")
+			# Split across multiple axioms on same row
+			for axiom in axioms.split(","):
+				AlloyAxiom = axiom
+				if("⊤" in axiom):
+					checkAxiomRange = axiom.split(".⊤")[0].split(" ")[-1]
+					rangeReplacement = "TOP"
+					for property_ in o.all_properties:
+						property_Name = nameOf(property_.uri)
+						if(property_Name == checkAxiomRange):
+							ranges_ = ranges(property_)
+							if(len(ranges_) == 1):
+								rangeReplacement = nameOf(ranges_[0])
+								if(rangeReplacement == "Thing"):
+									rangeReplacement = "TOP"
+					AlloyAxiom = DLAxiomtoAlloy(axiom.replace("⊤", rangeReplacement).replace(",", ""), 0)
 
-	AlloyPredicates = "\n// Predicates\n"
+				if (AlloyAxiom[0] == "{"):
+					print(AlloyAxiom)
+					AlloyAxiom = "fact " + AlloyAxiom
+				#print(AlloyAxiom)
+				
+				if("fact {" in AlloyAxiom[0:6]):
+					comment = "// "
+					for label in unUsedPropertiesLabels:
+						if(label in AlloyAxiom):
+							comment = ""
+					if(comment):
+						AlloyAxiomsComment = AlloyAxiomsComment + comment + AlloyAxiom + "\n"
+					else:
+						AlloyAxioms = AlloyAxioms + comment + AlloyAxiom + "\n"
+					
+				#print("")
+
+	AlloyProperties = "\n// Properties\n"
 
 	for subject, predicate, object_ in o.rdflib_graph:
 		#print(subject, predicate, object_)
@@ -355,9 +409,8 @@ def rm_main(dataDL):
 					#print(len(subj.range_of))
 					subj_range = subj.range_of[0].uri            
 
-				AlloyModel = AlloyModel + "// subPropertyOf as Figure4\n"
 				if(nameOf(subj_range) and nameOf(subj.uri) and nameOf(obj.uri)):
-					AlloyModel = AlloyModel + "pred subPropertyOf{all a:" + nameOf(subj_range) + " | a." + nameOf(subj.uri) + " in a." + nameOf(obj.uri) + "}" + "\n"
+					AlloyProperties = AlloyProperties + "fact {all a:" + nameOf(subj_range) + " | a." + nameOf(subj.uri) + " in a." + nameOf(obj.uri) + "} // subPropertyOf as Figure4\n"
 
 				obj_range = ""
 				if("Property" == str(obj)[1:9] and obj.ranges):
@@ -368,15 +421,17 @@ def rm_main(dataDL):
 					obj_range = obj.range_of[0].uri
 				
 				if(nameOf(subj_range) and nameOf(obj_range)):
-					AlloyModel = AlloyModel + "// subPropertyOf as TABLE I\n"
-					AlloyModel = AlloyModel + "pred subPropertyOf{all r:" + nameOf(subj_range) + " | r in " + nameOf(obj_range) + "}" + "\n"
+					obj_range = nameOf(obj_range)
+					if(obj_range == "Thing"):
+						obj_range = "TOP"
+					AlloyProperties = AlloyProperties + "fact {all r:" + nameOf(subj_range) + " | r in " + obj_range + "} // subPropertyOf as TABLE I\n"
 				
 			elif predicateName == "inverseOf":
-				AlloyModel = AlloyModel + "pred inverseOf{" + nameOf(subj.uri) + " = ~" + nameOf(obj.uri) + "}" + "\n"
+				AlloyProperties = AlloyProperties + "fact {" + nameOf(subj.uri) + " = ~" + nameOf(obj.uri) + "} // inverseOf\n"
 			
 			elif predicateName ==  "disjointWith":
 				if(subj.parents() and obj.parents() and subj.parents()[0] != obj.parents()[0]):
-					AlloyModel = AlloyModel + "pred { no c1:" + nameOf(subj.uri) + ", c2:" + nameOf(obj.uri) + "| c1 = c2} // disjointWith \n"
+					AlloyProperties = AlloyProperties + "fact { no c1:" + nameOf(subj.uri) + ", c2:" + nameOf(obj.uri) + "| c1 = c2} // disjointWith\n"
 					
 			elif predicateName ==  "complementOf":
 				C = "{"
@@ -385,52 +440,73 @@ def rm_main(dataDL):
 						C = C + nameOf(class_.uri)
 				C = C + "}"
 
-				AlloyModel = AlloyModel + "pred { " + nameOf(subj.uri) + " = " + str(C) + "} // complementOf \n"
+				AlloyProperties = AlloyProperties + "fact { " + nameOf(subj.uri) + " = " + str(C) + "} // complementOf\n"
 
 			elif predicateName ==  "equivalentClass":
-				AlloyModel = AlloyModel + "pred equivalentClass{ " + nameOf(subj.uri) + " = " + nameOf(obj.uri) + "}" + "\n"
+				AlloyProperties = AlloyProperties + "fact { " + nameOf(subj.uri) + " = " + nameOf(obj.uri) + "} // equivalentClass\n"
 
 			elif predicateName ==  "equivalentProperty":
-				AlloyModel = AlloyModel + "pred equivalentProperty{ " + nameOf(subj.uri) + " = " + nameOf(obj.uri) + "}" + "\n"
+				AlloyProperties = AlloyProperties + "fact { " + nameOf(subj.uri) + " = " + nameOf(obj.uri) + "} // equivalentProperty\n"
 
 			elif predicateName ==  "TransitiveProperty":
-				AlloyModel = AlloyModel + "pred TransitiveProperty{ a,b,c ∈ " + nameOf(subj.uri) + " / a.(" + nameOf(predicate) + ") = b && b.(" + nameOf(predicate) + ") = c ⇒ a.(" + nameOf(predicate) + ") = c }" + "\n"
+				AlloyProperties = AlloyProperties + "fact { a,b,c ∈ " + nameOf(subj.uri) + " / a.(" + nameOf(predicate) + ") = b && b.(" + nameOf(predicate) + ") = c ⇒ a.(" + nameOf(predicate) + ") = c } // TransitiveProperty\n"
 
 			elif predicateName ==  "hasValue":
 				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-					AlloyModel = AlloyModel + "pred hasValue{ #( " + pred.ranges[0] + " ) = 1}" + "\n"
+					pred_range = nameOf(pred.ranges[0])
+					if(pred_range == "Thing"):
+						pred_range = "TOP"
+					AlloyProperties = AlloyProperties + "fact { #( " + pred_range + " ) = 1} // hasValue\n"
 
 			elif predicateName ==  "cardinality":
 				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-					AlloyModel = AlloyModel + "pred cardinality{ #( " + pred.ranges[0] + " ) = " + nameOf(obj.uri) + "}" + "\n"
+					pred_range = nameOf(pred.ranges[0])
+					if(pred_range == "Thing"):
+						pred_range = "TOP"
+					AlloyProperties = AlloyProperties + "fact { #( " + pred_range + " ) = " + nameOf(obj.uri) + "} // cardinality\n"
 
 			elif predicateName ==  "maxCardinality":
 				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-					AlloyModel = AlloyModel + "pred maxCardinality{ #( " + pred.ranges[0] + " ) <= " + nameOf(obj.uri) + "}" + "\n"
+					pred_range = nameOf(pred.ranges[0])
+					if(pred_range == "Thing"):
+						pred_range = "TOP"
+					AlloyProperties = AlloyProperties + "fact { #( " + pred_range + " ) <= " + nameOf(obj.uri) + "} // maxCardinality\n"
 
 			elif predicateName ==  "minCardinality":
 				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-					AlloyModel = AlloyModel + "pred minCardinality{ #( " + pred.ranges[0] + " ) >= " + nameOf(obj.uri) + "}" + "\n"
+					pred_range = nameOf(pred.ranges[0])
+					if(pred_range == "Thing"):
+						pred_range = "TOP"
+					AlloyProperties = AlloyProperties + "fact { #( " + pred_range + " ) >= " + nameOf(obj.uri) + "} // minCardinality\n"
 
 			elif predicateName ==  "SymmetricProperty":
 				if((("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)) and (("Property" == str(pred)[1:9] and pred.domains) or ("Class" == str(pred)[1:6] and pred.domain_of))):
-					AlloyModel = AlloyModel + "pred SymmetricProperty{ a ∈ " + pred.domains[0] + " &&  b ∈ " + pred.ranges[0] + " / a.(" + nameOf(predicate) + ")  = b ⇒ b.(" + nameOf(predicate) + ") }" + "\n"
+					AlloyProperties = AlloyProperties + "fact { a ∈ " + pred.domains[0] + " &&  b ∈ " + pred.ranges[0] + " / a.(" + nameOf(predicate) + ")  = b ⇒ b.(" + nameOf(predicate) + ") } // SymmetricProperty\n"
 
 			elif predicateName ==  "FunctionalProperty":
 				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-					AlloyModel = AlloyModel + "pred FunctionalProperty{ #(" + pred.ranges[0] + ") = 1}" + "\n"
+					pred_range = nameOf(pred.ranges[0])
+					if(pred_range == "Thing"):
+						pred_range = "TOP"
+					AlloyProperties = AlloyProperties + "fact { #(" + pred_range + ") = 1} //FunctionalProperty \n"
 
 			elif predicateName ==  "InverseFunctionalProperty":
 				if(("Property" == str(pred)[1:9] and pred.domains) or ("Class" == str(pred)[1:6] and pred.domain_of)):
-					AlloyModel = AlloyModel + "pred InverseFunctionalProperty{ #(" + pred.domains[0] + ") = 1}" + "\n"
+					AlloyProperties = AlloyProperties + "fact { #(" + pred.domains[0] + ") = 1} // InverseFunctionalProperty\n"
 
 			elif predicateName ==  "allValuesFrom":
 				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-					AlloyModel = AlloyModel + "pred allValuesFrom{ " + nameOf(pred.ranges[0]) + " in " + nameOf(obj.uri) + "}" + "\n"
+					pred_range = nameOf(pred.ranges[0])
+					if(pred_range == "Thing"):
+						pred_range = "TOP"
+					AlloyProperties = AlloyProperties + "fact { " + pred_range + " in " + nameOf(obj.uri) + "} // allValuesFrom\n"
 
 			elif predicateName ==  "someValuesFrom":
 				if(("Property" == str(pred)[1:9] and pred.ranges) or ("Class" == str(pred)[1:6] and pred.range_of)):
-					AlloyModel = AlloyModel + "pred allValuesFrom{ some r: " + nameOf(pred.ranges[0]) + " | r in " + nameOf(obj.uri) + "}" + "\n"
+					pred_range = nameOf(pred.ranges[0])
+					if(pred_range == "Thing"):
+						pred_range = "TOP"
+					AlloyProperties = AlloyProperties + "fact { some r: " + pred_range + " | r in " + nameOf(obj.uri) + "} // someValuesFrom\n"
 
 		# META-PROPERTY OF OWL TO ALLOY
 		elif(predicateName == "type"):
@@ -439,31 +515,33 @@ def rm_main(dataDL):
 				if("Property" == str(subj)[1:9] and subj.ranges):
 					#print(len(subj.ranges))
 					subj_range = subj.ranges[0].uri
-				AlloyModel = AlloyModel + "fact { all c: " + subj_range + "| lone " + nameOf(subject)+ ".c } // FunctionalObjectProperty \n"
+					if(subj_range == "Thing"):
+						subj_range = "TOP"
+				AlloyProperties = AlloyProperties + "fact { all c: " + subj_range + "| lone " + nameOf(subject)+ ".c } // FunctionalObjectProperty \n"
 
 			elif(nameOf(object_) == "InverseFunctionalProperty"):
 				if("Property" == str(subj)[1:9] and subj.domains):
 					#print(len(subj.domains))
 					subj_domain = subj.domains[0].uri
-				AlloyModel = AlloyModel + "fact { all c: " + subj_domain + "| lone c." + nameOf(subject)+ " } // InverseFunctionalProperty \n"
+				AlloyProperties = AlloyProperties + "fact { all c: " + subj_domain + "| lone c." + nameOf(subject)+ " } // InverseFunctionalProperty \n"
 
 			elif(nameOf(object_) == "TransitiveProperty"):
-				AlloyModel = AlloyModel + "fact { " + nameOf(subj.uri) + "." + nameOf(subj.uri) + " in " + nameOf(subj.uri) + " } // TransitiveProperty \n"
+				AlloyProperties = AlloyProperties + "fact { " + nameOf(subj.uri) + "." + nameOf(subj.uri) + " in " + nameOf(subj.uri) + " } // TransitiveProperty \n"
 
 			elif(nameOf(object_) == "SymmetricProperty"):
-				AlloyModel = AlloyModel + "fact { ~" + nameOf(subj.uri) + " in " + nameOf(subj.uri) + " } // SymmetricProperty \n"
+				AlloyProperties = AlloyProperties + "fact { ~" + nameOf(subj.uri) + " in " + nameOf(subj.uri) + " } // SymmetricProperty \n"
 
 			elif(nameOf(object_) == "AsymmetricProperty"):
-				AlloyModel = AlloyModel + "fact {~" + nameOf(subj.uri) + "  & " + nameOf(subj.uri) + " in iden} // AsymmetricProperty \n"
+				AlloyProperties = AlloyProperties + "fact {~" + nameOf(subj.uri) + "  & " + nameOf(subj.uri) + " in iden} // AsymmetricProperty \n"
 
 			elif(nameOf(object_) == "ReflexiveProperty"):
 				if("Property" == str(subj)[1:9] and subj.domains):
 					#print(len(subj.domains))
 					subj_domain = subj.domains[0].uri
-				AlloyModel = AlloyModel + "fact {" + subj_domain + "<:iden in " + nameOf(subj.uri) + "} // ReflexiveProperty \n"
+				AlloyProperties = AlloyProperties + "fact {" + subj_domain + "<:iden in " + nameOf(subj.uri) + "} // ReflexiveProperty \n"
 
 			elif(nameOf(object_) == "IrreflexiveProperty"):
-				AlloyModel = AlloyModel + "fact {no iden & " + nameOf(subj.uri) + "} // IrreflexiveProperty \n"
+				AlloyProperties = AlloyProperties + "fact {no iden & " + nameOf(subj.uri) + "} // IrreflexiveProperty \n"
 
 
 	with open(fileName, "w+") as Alloy:
@@ -471,15 +549,28 @@ def rm_main(dataDL):
 
 		Alloy.write(AlloySignatures)
 
+		Alloy.write(AlloyProperties)
+
 		Alloy.write(AlloyAxioms)
 
-		Alloy.write(AlloyPredicates)
+		Alloy.write(AlloyAxiomsComment)
 
 
+	# Comment unUsed DataTypes
 	AlloyUtils = ""
 	#AlloyUtilsFile = "%{AlloyUtilsFile}"
 	with open(AlloyUtilsFile, "r") as AlloyUtilsFileRead:
-		AlloyUtils = AlloyUtilsFileRead.read()
+		if("TOP" in usedDataTypes):
+			usedDataTypes.remove("TOP")
+		for line in AlloyUtilsFileRead.readlines():
+			if(len(line) > 1 and line[0:2] != "//"):
+				comment = "// "
+				for datatype in usedDataTypes:
+					if(datatype in line):
+						comment = ""
+				AlloyUtils = AlloyUtils + comment + line.strip() + "\n"
+			else:
+				AlloyUtils = AlloyUtils + line.strip() + "\n"
 
 	with open(fileName, "a+") as Alloy:
 		Alloy.write("\n")
@@ -494,13 +585,13 @@ fileName = "gufo" #, people.owl, Animal.owl, schema_2020-03-10.n3
 inputFile = "/home/marco/Desktop/Alloy/" + fileName + ".owl"
 outputDirectory = "/home/marco/Desktop/Alloy/results/"
 
-inputFile = "/home/marco/Desktop/Alloy/InputCheck/no.owl"
+inputFile = "/home/marco/Desktop/Alloy/InputCheck/yes.owl"
 outputDirectory = "/home/marco/Desktop/Alloy/InputCheck/results/"
 
 
 #test = pd.read_excel("/home/marco/Desktop/Alloy/peopleDL_.xlsx")
 #test = pd.read_excel("/home/marco/Desktop/Alloy/gufoDL.xlsx")
-test = pd.read_excel("/home/marco/Desktop/Alloy/InputCheck/noDL.xls")
+test = pd.read_excel("/home/marco/Desktop/Alloy/InputCheck/yesDL.xls")
 
 rm_main(test)
 
@@ -515,7 +606,4 @@ rm_main(test)
 
 #print(DLAxiomtoAlloy("⊤ ⊑ ¬∃ externallyDependsOn .self",0))
 
-
-
-
-
+#print(DLAxiomtoAlloy("∃ partitions.⊤ ⊑ (Type ⊓ (¬AbstractIndividualType) ⊓ (¬ConcreteIndividualType))",0,set(["partitions"])))
