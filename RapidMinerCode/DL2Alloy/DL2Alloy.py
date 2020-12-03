@@ -262,7 +262,7 @@ def rm_main(dataDL):
      
 	moduleName = ((str(inputFile).split("/")[-1]).split("."))[-2] + "DL"
 	fileName = outputDirectory + moduleName + ".als"
-	
+
 	AlloyModel = "module " + moduleName + "\n\n"
 
 	usedProperties = set()
@@ -331,52 +331,54 @@ def rm_main(dataDL):
 	AlloyModel = AlloyModel + "sig BOTTOM in TOP {} fact { #BOTTOM = 0 } \n\n"
 
 	unUsedProperties = set(o.all_properties) - usedProperties
-	unUsedPropertiesLabels = set()
+	unUsedLabels = set()
 	for uUP in unUsedProperties:
-		unUsedPropertiesLabels.add(nameOf(uUP.uri))
+		unUsedLabels.add(nameOf(uUP.uri))
 
-	"""
 	# To add if we want to keep also class relations
-	validLabels = unUsedPropertiesLabels
 	for validClass in o.all_classes:
-		validLabels.add(nameOf(validClass.uri))
-	"""
+		unUsedLabels.add(nameOf(validClass.uri))
+	print(unUsedLabels)
 
 	AlloyAxioms = "\n// Axioms\n"
 	AlloyAxiomsComment = "\n// Non Relevant Axioms\n"
 
 	# Iterate for every DL Axioms
 	for index, row in dataDL.iterrows():
-
+		
 		if (row["DLAxioms"]):
 
-			axioms = row["DLAxioms"].encode('utf-8').strip()
-
+			axioms = row["DLAxioms"]#.encode('utf-8').strip()
+			
 			# Split across multiple axioms on same row
-			for axiom in axioms.split(","):
+			for axiom in str(axioms).split(','):
+				#print(axiom)
 				AlloyAxiom = axiom
+				# Get the Range Replacement
+				rangeReplacement = "TOP"
 				if("⊤" in axiom):
 					checkAxiomRange = axiom.split(".⊤")[0].split(" ")[-1]
 					rangeReplacement = "TOP"
 					for property_ in o.all_properties:
 						property_Name = nameOf(property_.uri)
-						if(property_Name == checkAxiomRange):
+						if(property_Name == checkAxiomRange): 
 							ranges_ = ranges(property_)
 							if(len(ranges_) == 1):
 								rangeReplacement = nameOf(ranges_[0])
 								if(rangeReplacement == "Thing"):
 									rangeReplacement = "TOP"
-					AlloyAxiom = DLAxiomtoAlloy(axiom.replace("⊤", rangeReplacement).replace(",", ""), 0)
+				# Generate the Axiom
+				AlloyAxiom = DLAxiomtoAlloy(axiom.replace("⊤", rangeReplacement).replace(",", ""), 0)
 
 				if (AlloyAxiom[0] == "{"):
-					print(AlloyAxiom)
+					#print(AlloyAxiom)
 					AlloyAxiom = "fact " + AlloyAxiom
 				#print(AlloyAxiom)
 				
 				if("fact {" in AlloyAxiom[0:6]):
 					comment = "// "
-					for label in unUsedPropertiesLabels:
-						if(label in AlloyAxiom):
+					for label in unUsedLabels: # [TODO] CHECK
+						if( label in AlloyAxiom):
 							comment = ""
 					if(comment):
 						AlloyAxiomsComment = AlloyAxiomsComment + comment + AlloyAxiom + "\n"
@@ -430,9 +432,12 @@ def rm_main(dataDL):
 				AlloyProperties = AlloyProperties + "fact {" + nameOf(subj.uri) + " = ~" + nameOf(obj.uri) + "} // inverseOf\n"
 			
 			elif predicateName ==  "disjointWith":
+				"""
 				if(subj.parents() and obj.parents() and subj.parents()[0] != obj.parents()[0]):
 					AlloyProperties = AlloyProperties + "fact { no c1:" + nameOf(subj.uri) + ", c2:" + nameOf(obj.uri) + "| c1 = c2} // disjointWith\n"
-					
+				"""
+				AlloyProperties = AlloyProperties + "fact { no c1:" + nameOf(subj.uri) + ", c2:" + nameOf(obj.uri) + "| c1 = c2} // disjointWith\n"
+				
 			elif predicateName ==  "complementOf":
 				C = "{"
 				for class_ in o.all_classes:
@@ -593,6 +598,13 @@ outputDirectory = "/home/marco/Desktop/Alloy/InputCheck/results/"
 #test = pd.read_excel("/home/marco/Desktop/Alloy/gufoDL.xlsx")
 test = pd.read_excel("/home/marco/Desktop/Alloy/InputCheck/yesDL.xls")
 
+
+
+inputFile = "/home/marco/Desktop/Alloy/car.owl"
+test = pd.read_csv("/home/marco/Desktop/Alloy/car/axiomsUpdated.csv")
+outputDirectory = "/home/marco/Desktop/Alloy/car/"
+
+
 rm_main(test)
 
 #print(DLAxiomtoAlloy("∃ partitions.⊤ ⊑ (Type ⊓ (¬AbstractIndividualType) ⊓ (¬ConcreteIndividualType))",0))
@@ -607,3 +619,6 @@ rm_main(test)
 #print(DLAxiomtoAlloy("⊤ ⊑ ¬∃ externallyDependsOn .self",0))
 
 #print(DLAxiomtoAlloy("∃ partitions.⊤ ⊑ (Type ⊓ (¬AbstractIndividualType) ⊓ (¬ConcreteIndividualType))",0,set(["partitions"])))
+
+#print(DLAxiomtoAlloy("Engine ⊑ ¬ Person, Engine ⊑ ¬ Wheel, Person ⊑ ¬ Wheel" ,0))
+#print(DLAxiomtoAlloy("Buyer ⊑ Person" ,0))
